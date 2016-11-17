@@ -5,14 +5,14 @@
     "guid": "PBI_CV_3C80B1F2_09AF_4123_8E99_C3CBC46B23E0",
     "visualClassName": "DualKpi",
     "version": "1.0.0",
-    "description": "",
-    "supportUrl": "",
-    "gitHubUrl": ""
+    "description": "Visual for displaying and comparing two KPI's",
+    "supportUrl": "https://github.com/tisawyer/Dual-KPI-Custom-Visual/issues",
+    "gitHubUrl": "https://github.com/tisawyer/Dual-KPI-Custom-Visual"
   },
   "apiVersion": "1.2.0",
   "author": {
-    "name": "",
-    "email": ""
+    "name": "Tim Sawyer",
+    "email": "tisawyer@microsoft.com"
   },
   "assets": {
     "icon": "assets/icon.png"
