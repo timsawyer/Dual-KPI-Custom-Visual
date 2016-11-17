@@ -1,0 +1,23 @@
+{
+  "visual": {
+    "name": "dualKpi",
+    "displayName": "Dual KPI",
+    "guid": "PBI_CV_3C80B1F2_09AF_4123_8E99_C3CBC46B23E0",
+    "visualClassName": "DualKpi",
+    "version": "1.0.0",
+    "description": "",
+    "supportUrl": "",
+    "gitHubUrl": ""
+  },
+  "apiVersion": "1.2.0",
+  "author": {
+    "name": "",
+    "email": ""
+  },
+  "assets": {
+    "icon": "assets/icon.png"
+  },
+  "externalJS": [],
+  "style": "style/visual.less",
+  "capabilities": "capabilities.json"
+}
