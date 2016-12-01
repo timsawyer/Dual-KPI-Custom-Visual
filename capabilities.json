@@ -34,13 +34,13 @@
     "dataViewMappings": [
         {
             "conditions": [
-                { 
-                    "axis": { "max": 1 }, 
-                    "topvalues": { "max": 1 }, 
-                    "bottomvalues": { "max": 1 }, 
+                {
+                    "axis": { "max": 1 },
+                    "topvalues": { "max": 1 },
+                    "bottomvalues": { "max": 1 },
                     "warningstate": { "max": 1 },
-                    "toppercentdate": { "max": 1 }, 
-                    "bottompercentdate": { "max": 1 } 
+                    "toppercentdate": { "max": 1 },
+                    "bottompercentdate": { "max": 1 }
 
                 }
             ],
@@ -72,6 +72,10 @@
                     "displayName": "Title text",
                     "type": { "text": true }
                 },
+                "abbreviateValues": {
+                    "displayName": "Abbreviate values",
+                    "type": { "bool": true }
+                },
                 "topChartToolTipText": {
                     "displayName": "Top chart tooltip text",
                     "type": { "text": true }
@@ -86,7 +90,7 @@
                 },
                 "showStaleDataWarning": {
                     "displayName": "Show stale data warning",
-                    "type": { "bool": true }  
+                    "type": { "bool": true }
                 },
                 "staleDataTooltipText": {
                     "displayName": "Stale data tooltip text",

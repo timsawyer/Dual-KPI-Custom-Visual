@@ -43,6 +43,7 @@ module powerbi.extensibility.visual {
 
         // formatting pane
         title: string;
+        abbreviateValues: boolean;
         topChartToolTipText: string;
         bottomChartToolTipText: string;
         errorTooltipText: string;
@@ -70,7 +71,7 @@ module powerbi.extensibility.visual {
     export enum DualKpiSize {
         extrasmall,
         small,
-        medium, 
+        medium,
         large
     };
 
@@ -78,6 +79,7 @@ module powerbi.extensibility.visual {
 
         private static defaultValues = {
             titleText: "Title",
+            abbreviateValues: false,
             topChartToolTipText: "",
             bottomChartToolTipText: "",
             errorTooltipText: "Error",
@@ -99,6 +101,7 @@ module powerbi.extensibility.visual {
 
         private static properties = {
             titleText:              { objectName: "dualKpiProperties", propertyName: "titleText" },
+            abbreviateValues:       { objectName: "dualKpiProperties", propertyName: "abbreviateValues" },
             topChartToolTipText:    { objectName: "dualKpiProperties", propertyName: "topChartToolTipText" },
             bottomChartToolTipText: { objectName: "dualKpiProperties", propertyName: "bottomChartToolTipText" },
             errorTooltipText:       { objectName: "dualKpiProperties", propertyName: "errorTooltipText" },
@@ -126,7 +129,7 @@ module powerbi.extensibility.visual {
         private svgRoot: d3.Selection<SVGElement>;
         private bottomContainer: d3.Selection<SVGElement>;
         private valueFormatter: Function;
-        private percentFormatter: Function;
+        private commaNumberFormatter: Function;
         private timeFormatter: Function;
         private dataBisector: Function;
 
@@ -136,7 +139,7 @@ module powerbi.extensibility.visual {
             this.size = DualKpiSize.small;
             this.sizeCssClass = "small";
             this.valueFormatter = d3.format(".3s");
-            this.percentFormatter = d3.format("+.2p");
+            this.commaNumberFormatter = d3.format(",");
             this.timeFormatter = d3.time.format("%m/%d/%y");
             this.dataBisector = d3.bisector((d: IDualKpiDataPoint) => { return d.date; }).left;
         }
@@ -179,7 +182,7 @@ module powerbi.extensibility.visual {
                 chartSpaceBetween = 6;
                 chartTitleSpace = 18;
             }
-            
+
             this.svgRoot.attr("width", availableWidth)
                         .attr("height", availableHeight);
 
@@ -190,13 +193,8 @@ module powerbi.extensibility.visual {
             let topChartPercentChangeStartPoint = this.getPercentChangeStartPoint(this.data.topValues, this.data.topPercentCalcDate);
             let bottomChartPercentChangeStartPoint = this.getPercentChangeStartPoint(this.data.bottomValues, this.data.bottomPercentCalcDate);
 
-            console.log("bottom date:");
-            console.log(this.data.bottomPercentCalcDate);
-            console.log("bottom data point:");
-            console.log(bottomChartPercentChangeStartPoint);
-
-            this.drawChart(0, chartWidth, chartHeight, this.data.topValues, this.data.topChartName, this.data.topValueAsPercent, this.data.topChartToolTipText, topChartAxisConfig, topChartPercentChangeStartPoint);
-            this.drawChart(chartHeight + chartSpaceBetween, chartWidth, chartHeight, this.data.bottomValues, this.data.bottomChartName, this.data.bottomValueAsPercent, this.data.bottomChartToolTipText, bottomChartAxisConfig, bottomChartPercentChangeStartPoint);
+            this.drawChart(0, chartWidth, chartHeight, this.data.topValues, this.data.topChartName, this.data.topValueAsPercent, this.data.topChartToolTipText, topChartAxisConfig, topChartPercentChangeStartPoint, this.data.abbreviateValues);
+            this.drawChart(chartHeight + chartSpaceBetween, chartWidth, chartHeight, this.data.bottomValues, this.data.bottomChartName, this.data.bottomValueAsPercent, this.data.bottomChartToolTipText, bottomChartAxisConfig, bottomChartPercentChangeStartPoint, this.data.abbreviateValues);
 
             /* ADD bottom container */
             let warningIconShowing = false;
@@ -210,7 +208,7 @@ module powerbi.extensibility.visual {
                 .attr("class", "title")
                 .classed(this.sizeCssClass, true)
                 .text(this.data.title);
-            
+
             let chartTitleElementWidth = (chartTitleElement.node() as SVGTextElement).getBBox().width;
             let chartTitleElementHeight = (chartTitleElement.node() as SVGTextElement).getBBox().height;
             let iconWidth = 22;
@@ -240,7 +238,7 @@ module powerbi.extensibility.visual {
                 // move title over to account for icon
                 chartTitleElement.attr("transform", "translate(" + (iconWidth + 6) + ",0)");
             }
-            
+
             // add info icon
             let today = new Date();
             let dataDaysOld = this.getDaysBetween(this.data.topValues[this.data.topValues.length-1].date, today);
@@ -294,6 +292,7 @@ module powerbi.extensibility.visual {
                         selector: null,
                         properties: {
                             titleText:              DualKpi.getTitleText(this.dataView),
+                            abbreviateValues:       DualKpi.getAbbreviateValues(this.dataView),
                             topChartToolTipText:    DualKpi.getTopChartToolTipText(this.dataView),
                             bottomChartToolTipText: DualKpi.getBottomChartToolTipText(this.dataView),
                             errorTooltipText:       DualKpi.getErrorTooltipText(this.dataView),
@@ -355,6 +354,10 @@ module powerbi.extensibility.visual {
 
         private static getTitleText(dataView: DataView): string {
             return dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.titleText, DualKpi.defaultValues.titleText);
+        }
+
+        private static getAbbreviateValues(dataView: DataView): boolean {
+            return dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.abbreviateValues, DualKpi.defaultValues.abbreviateValues);
         }
 
         private static getTopChartToolTipText(dataView: DataView): string {
@@ -423,6 +426,17 @@ module powerbi.extensibility.visual {
             return dayRange;
         }
 
+        private percentFormatter(value: number, showPlusMinus?: boolean): string {
+            var prefix = value >= 0 ? "+" : "",
+                valueString = (value * 100).toFixed(1) + "%";
+
+            if (showPlusMinus) {
+                valueString = prefix + valueString;
+            }
+
+            return valueString;
+        }
+
         private getPercentChange(startValue: number, endValue: number): string {
             if (startValue === 0) {
                 return "n/a";
@@ -435,13 +449,13 @@ module powerbi.extensibility.visual {
                 percentChange = percentChange * -1;
             }
 
-            return this.percentFormatter(percentChange);
+            return this.percentFormatter(percentChange, true);
         }
 
         private getPercentChangeStartPoint(chartData: Array<IDualKpiDataPoint>, percentCalcDate: Date): IDualKpiDataPoint {
             if (percentCalcDate !== null) {
                 let closestIndex = 0,
-                    percentCalcDateTime = percentCalcDate.getTime(), 
+                    percentCalcDateTime = percentCalcDate.getTime(),
                     i, currTime;
 
                 // keep track of closest date to configured date
@@ -503,13 +517,14 @@ module powerbi.extensibility.visual {
 
             // get formatting pane values
             data.title = DualKpi.getTitleText(dataView);
+            data.abbreviateValues = DualKpi.getAbbreviateValues(dataView);
             data.topChartToolTipText = DualKpi.getTopChartToolTipText(dataView);
             data.bottomChartToolTipText = DualKpi.getBottomChartToolTipText(dataView);
             data.errorTooltipText = DualKpi.getErrorTooltipText(dataView);
             data.showStaleDataWarning = DualKpi.getShowStaleDataWarning(dataView);
             data.staleDataTooltipText = DualKpi.getStaleDataTooltipText(dataView);
             data.staleDataThreshold = DualKpi.getStaleDataThreshold(dataView);
-            
+
             data.dataColor = DualKpi.getDataColor(dataView).solid.color;
             data.textColor = DualKpi.getTextColor(dataView).solid.color;
             data.opacity = DualKpi.getOpacity(dataView);
@@ -518,7 +533,7 @@ module powerbi.extensibility.visual {
             data.topChartAxisMax = DualKpi.getTopChartAxisMax(dataView);
             data.bottomChartAxisMin = DualKpi.getBottomChartAxisMin(dataView);
             data.bottomChartAxisMax = DualKpi.getBottomChartAxisMax(dataView);
-            
+
             let axisCol = -1, topValuesCol = -1, bottomValuesCol = -1, warningStateCol = -1,
                 topPercentDateCol = -1, bottomPercentDateCol = -1,
                 rows = [],
@@ -598,7 +613,7 @@ module powerbi.extensibility.visual {
         }
 
         private createHoverDataContainer(chartBottom: number, chartLeft: number, chartWidth: number): d3.Selection<SVGElement> {
-            let hoverDataContainer = this.svgRoot.append("g")   
+            let hoverDataContainer = this.svgRoot.append("g")
                                         .attr("class", "hover-data-container")
                                         .classed("invisible", true);
 
@@ -623,25 +638,25 @@ module powerbi.extensibility.visual {
                 .text("0")
                 .attr("fill", this.data.textColor)
                 .attr("transform", "translate(" + (chartWidth) + ",0)");
-            
+
             let hoverValueHeight = (hoverValue.node() as SVGTextElement).getBBox().height;
             hoverDataContainer.attr("transform", "translate(" + chartLeft + "," + (chartBottom + hoverValueHeight - 2)  + ")");
 
             return hoverDataContainer;
         }
 
-        private showHoverData(hoverDataContainer: d3.Selection<SVGElement>, dataPoint: IDualKpiDataPoint, latestValue: number, valueAsPercent: boolean) {
+        private showHoverData(hoverDataContainer: d3.Selection<SVGElement>, dataPoint: IDualKpiDataPoint, latestValue: number, valueAsPercent: boolean, abbreviateValue: boolean) {
             hoverDataContainer.select(".hover-text.date")
                 .datum(dataPoint)
                 .text((d: IDualKpiDataPoint) => this.timeFormatter(d.date));
-            
+
             hoverDataContainer.select(".hover-text.value")
                 .datum(dataPoint)
                 .text((d: IDualKpiDataPoint) => {
-                    let value = this.valueFormatter(d.value);
+                    let value = abbreviateValue ? this.valueFormatter(d.value) : this.commaNumberFormatter(Math.round(d.value));
                     if (valueAsPercent) {
-                        return value + "%";
-                    } 
+                        return this.percentFormatter(value / 100);
+                    }
                     return value;
                 });
 
@@ -660,13 +675,14 @@ module powerbi.extensibility.visual {
             this.bottomContainer.classed("hidden", false);
         }
 
-        private drawChart(  top: number, width: number, height: number, chartData: Array<IDualKpiDataPoint>, 
-                            chartTitle: string, valueAsPercent: boolean, tooltipText: string, 
-                            axisConfig: IAxisConfig, percentChangeStartPoint: IDualKpiDataPoint): void 
+        private drawChart(  top: number, width: number, height: number, chartData: Array<IDualKpiDataPoint>,
+                            chartTitle: string, valueAsPercent: boolean, tooltipText: string,
+                            axisConfig: IAxisConfig, percentChangeStartPoint: IDualKpiDataPoint,
+                            abbreviateValue: boolean): void
         {
             let axisNumberFormatter = d3.format(".2s");
             let latestValue = chartData[chartData.length-1].value;
-            
+
             let margin = {top: 5, right: 0, bottom: 0, left: 30};
             if(this.size === DualKpiSize.medium || this.size === DualKpiSize.large) {
                 margin.left = 40;
@@ -676,7 +692,7 @@ module powerbi.extensibility.visual {
                 calcHeight = height - margin.top - margin.bottom,
                 minValue = d3.min(chartData, (d) => d.value),
                 maxValue = d3.max(chartData, (d) => d.value);
-            
+
             let axisMinValue = axisConfig.min !== null ? axisConfig.min : minValue;
             let axisMaxValue = axisConfig.max !== null ? axisConfig.max : maxValue;
 
@@ -689,7 +705,7 @@ module powerbi.extensibility.visual {
 
             let yScale = d3.scale.linear()
                 .domain([axisMinValue, axisMaxValue])
-                .range([calcHeight, 0]);            
+                .range([calcHeight, 0]);
 
             let yAxis = d3.svg.axis()
                 .scale(yScale)
@@ -702,7 +718,7 @@ module powerbi.extensibility.visual {
                     return axisTickLabel;
                 })
                 .orient("left");
-        
+
             let area = d3.svg.area()
                 .x((d: any) => xScale(d.date))
                 .y0(calcHeight)
@@ -742,7 +758,7 @@ module powerbi.extensibility.visual {
                     let i = this.dataBisector(chartData, x, 1);
                     let dataPoint = chartData[i];
 
-                    this.showHoverData(hoverDataContainer, dataPoint, latestValue, valueAsPercent);
+                    this.showHoverData(hoverDataContainer, dataPoint, latestValue, valueAsPercent, abbreviateValue);
                 }
                 else {
                     hoverLine.classed("hidden", true);
@@ -753,26 +769,27 @@ module powerbi.extensibility.visual {
             this.target.addEventListener("mouseout", (e: MouseEvent) => {
                 hoverLine.classed("hidden", true);
                 this.hideHoverData(hoverDataContainer);
-            }, true);   
+            }, true);
 
             /* ADD OVERLAY TEXT ********************************************/
             let percentChange = this.getPercentChange(percentChangeStartPoint.value, chartData[chartData.length-1].value);
-            let formattedValue = this.valueFormatter(latestValue);
+            console.log("do i abbreviate: " + abbreviateValue);
+            let formattedValue = abbreviateValue ? this.valueFormatter(latestValue) : this.commaNumberFormatter(Math.round(latestValue));
 
             if (valueAsPercent) {
-                formattedValue += "%";
+                formattedValue = this.percentFormatter(latestValue / 100);
                 // if value is a percent, only show difference changed, not percent of percent
-                percentChange = (chartData[chartData.length-1].value - percentChangeStartPoint.value).toFixed(1) + "%";
+                percentChange = this.percentFormatter((chartData[chartData.length-1].value - percentChangeStartPoint.value) / 100, true);
             }
 
-            let chartOverlayTextGroup = chartGroup.append("g"); 
+            let chartOverlayTextGroup = chartGroup.append("g");
             let dataTitle = chartOverlayTextGroup.append("text")
                 .classed("invisible", true)
                 .attr("class", "data-title")
                 .classed(this.sizeCssClass, true)
                 .attr("fill", this.data.textColor)
                 .text(chartTitle + " (" + percentChange + ")");
-            
+
             let dataValue = chartOverlayTextGroup.append("text")
                 .classed("invisible", true)
                 .attr("class", "data-value")
@@ -789,7 +806,7 @@ module powerbi.extensibility.visual {
             let dataValueWidth = (dataValue.node() as SVGTextElement).getBBox().width;
             let dataTitleHorzCentering = ((calcWidth/2)) - (dataTitleWidth/2);
             let dataValueHorzCentering = ((calcWidth/2)) - (dataValueWidth/2);
-            
+
             // apply centerings, then unhide text
             dataTitle.attr("transform", "translate(" + dataTitleHorzCentering + ",0)");
             dataValue.attr("transform", "translate(" + dataValueHorzCentering + "," + (dataValueHeight * 10 / 11) + ")");
@@ -805,9 +822,9 @@ module powerbi.extensibility.visual {
             overlayRect.append("title").text(tooltipText + " " + percentChangeDesc);
             overlayRect.attr("width", dataTitleWidth)
                 .attr("height", dataTitleHeight + dataValueHeight)
-                .attr("transform", "translate(" + dataTitleHorzCentering + "," + (-dataTitleHeight) + ")");   
+                .attr("transform", "translate(" + dataTitleHorzCentering + "," + (-dataTitleHeight) + ")");
         }
 
-        
+
     }  /*close IVisual*/
 } /*close export*/
