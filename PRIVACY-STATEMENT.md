@@ -1,0 +1,1 @@
+The Dual KPI visualization does not collect or use any of your personal information. The chart only receives data from PowerBI and does all rendering and computation in the client browser. No information is transmitted to any third-party services.
