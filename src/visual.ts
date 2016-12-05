@@ -147,133 +147,59 @@ module powerbi.extensibility.visual {
         public update(options: VisualUpdateOptions) {
             this.svgRoot.selectAll("*").remove();
             this.dataView = options.dataViews[0];
-            this.data = this.converter(this.dataView);
 
-            let availableHeight = options.viewport.height < 90 ? 90 : options.viewport.height,
-                availableWidth = options.viewport.width < 220 ? 220 : options.viewport.width,
-                chartWidth = availableWidth,
-                chartSpaceBetween, chartTitleSpace, iconOffset;
+            if (this.dataView && this.dataView.metadata && this.dataView.metadata.columns) {
+                this.data = this.converter(this.dataView);
 
-            if (availableHeight >= 450) {
-                this.size = DualKpiSize.large;
-                this.sizeCssClass = "large";
-                iconOffset = -1;
-                chartSpaceBetween = 25;
-                chartTitleSpace = 46;
+                let availableHeight = options.viewport.height < 90 ? 90 : options.viewport.height,
+                    availableWidth = options.viewport.width < 220 ? 220 : options.viewport.width,
+                    chartWidth = availableWidth,
+                    chartSpaceBetween, chartTitleSpace, iconOffset;
+
+                if (availableHeight >= 450) {
+                    this.size = DualKpiSize.large;
+                    this.sizeCssClass = "large";
+                    iconOffset = -1;
+                    chartSpaceBetween = 25;
+                    chartTitleSpace = 46;
+                }
+                else if (availableHeight >= 280) {
+                    this.size = DualKpiSize.medium;
+                    this.sizeCssClass = "medium";
+                    iconOffset = -8;
+                    chartSpaceBetween = 20;
+                    chartTitleSpace = 30;
+                }
+                else if (availableHeight >= 120) {
+                    this.size = DualKpiSize.small;
+                    this.sizeCssClass = "small";
+                    iconOffset = -6;
+                    chartSpaceBetween = 15;
+                    chartTitleSpace = 22;
+                }
+                else {
+                    this.size = DualKpiSize.extrasmall;
+                    this.sizeCssClass = "extra-small";
+                    iconOffset = -8;
+                    chartSpaceBetween = 6;
+                    chartTitleSpace = 18;
+                }
+
+                this.svgRoot.attr("width", availableWidth)
+                            .attr("height", availableHeight);
+
+                let chartHeight = (availableHeight - (chartSpaceBetween + chartTitleSpace)) / 2;
+                let topChartAxisConfig = { min: this.data.topChartAxisMin, max: this.data.topChartAxisMax };
+                let bottomChartAxisConfig = { min: this.data.bottomChartAxisMin, max: this.data.bottomChartAxisMax };
+
+                let topChartPercentChangeStartPoint = this.getPercentChangeStartPoint(this.data.topValues, this.data.topPercentCalcDate);
+                let bottomChartPercentChangeStartPoint = this.getPercentChangeStartPoint(this.data.bottomValues, this.data.bottomPercentCalcDate);
+
+                this.drawChart(0, chartWidth, chartHeight, this.data.topValues, this.data.topChartName, this.data.topValueAsPercent, this.data.topChartToolTipText, topChartAxisConfig, topChartPercentChangeStartPoint, this.data.abbreviateValues);
+                this.drawChart(chartHeight + chartSpaceBetween, chartWidth, chartHeight, this.data.bottomValues, this.data.bottomChartName, this.data.bottomValueAsPercent, this.data.bottomChartToolTipText, bottomChartAxisConfig, bottomChartPercentChangeStartPoint, this.data.abbreviateValues);
+
+                this.drawBottomContainer(chartWidth, chartHeight, chartTitleSpace, chartSpaceBetween, iconOffset);
             }
-            else if (availableHeight >= 280) {
-                this.size = DualKpiSize.medium;
-                this.sizeCssClass = "medium";
-                iconOffset = -8;
-                chartSpaceBetween = 20;
-                chartTitleSpace = 30;
-            }
-            else if (availableHeight >= 120) {
-                this.size = DualKpiSize.small;
-                this.sizeCssClass = "small";
-                iconOffset = -6;
-                chartSpaceBetween = 15;
-                chartTitleSpace = 22;
-            }
-            else {
-                this.size = DualKpiSize.extrasmall;
-                this.sizeCssClass = "extra-small";
-                iconOffset = -8;
-                chartSpaceBetween = 6;
-                chartTitleSpace = 18;
-            }
-
-            this.svgRoot.attr("width", availableWidth)
-                        .attr("height", availableHeight);
-
-            let chartHeight = (availableHeight - (chartSpaceBetween + chartTitleSpace)) / 2;
-            let topChartAxisConfig = { min: this.data.topChartAxisMin, max: this.data.topChartAxisMax };
-            let bottomChartAxisConfig = { min: this.data.bottomChartAxisMin, max: this.data.bottomChartAxisMax };
-
-            let topChartPercentChangeStartPoint = this.getPercentChangeStartPoint(this.data.topValues, this.data.topPercentCalcDate);
-            let bottomChartPercentChangeStartPoint = this.getPercentChangeStartPoint(this.data.bottomValues, this.data.bottomPercentCalcDate);
-
-            this.drawChart(0, chartWidth, chartHeight, this.data.topValues, this.data.topChartName, this.data.topValueAsPercent, this.data.topChartToolTipText, topChartAxisConfig, topChartPercentChangeStartPoint, this.data.abbreviateValues);
-            this.drawChart(chartHeight + chartSpaceBetween, chartWidth, chartHeight, this.data.bottomValues, this.data.bottomChartName, this.data.bottomValueAsPercent, this.data.bottomChartToolTipText, bottomChartAxisConfig, bottomChartPercentChangeStartPoint, this.data.abbreviateValues);
-
-            /* ADD bottom container */
-            let warningIconShowing = false;
-            let infoIconShowing = false;
-
-            this.bottomContainer = this.svgRoot.append("g")
-                .attr("class", "bottom-title-container")
-                .classed("invisible", true);
-
-            let chartTitleElement = this.bottomContainer.append("text")
-                .attr("class", "title")
-                .classed(this.sizeCssClass, true)
-                .text(this.data.title);
-
-            let chartTitleElementWidth = (chartTitleElement.node() as SVGTextElement).getBBox().width;
-            let chartTitleElementHeight = (chartTitleElement.node() as SVGTextElement).getBBox().height;
-            let iconWidth = 22;
-            let iconScaleTransform = "";
-            let iconY = (-chartTitleSpace + (chartTitleSpace/2) + iconOffset);
-
-            if (this.size === DualKpiSize.small || this.size === DualKpiSize.extrasmall) {
-                iconScaleTransform = "scale(0.75)";
-                iconWidth = 16;
-            }
-
-            // add warning icon
-            if (this.data.warningState < 0) {
-                this.bottomContainer.append("g")
-                .attr("transform", "translate(0," + (iconY) + ")")
-                .append("path")
-                    .attr("d", "M24,24H8l8-16L24,24z M9.7,23h12.6L16,10.4L9.7,23z M16.5,19.8h-1v-5.4h1V19.8z M16.5,20.8v1.1h-1v-1.1H16.5z")
-                    .attr("fill", "#E81123")
-                    .attr("stroke", "transparent")
-                    .attr("stroke-width", "5") // fills in path so that title tooltip will show
-                    .attr("class", "warning-icon")
-                    .attr("transform", iconScaleTransform)
-                    .classed(this.sizeCssClass, true)
-                    .append("title")
-                            .text(this.data.errorTooltipText);
-
-                // move title over to account for icon
-                chartTitleElement.attr("transform", "translate(" + (iconWidth + 6) + ",0)");
-            }
-
-            // add info icon
-            let today = new Date();
-            let dataDaysOld = this.getDaysBetween(this.data.topValues[this.data.topValues.length-1].date, today);
-            if(dataDaysOld >= this.data.staleDataThreshold && this.data.showStaleDataWarning) {
-                infoIconShowing = true;
-                this.bottomContainer.append("g")
-                    .attr("transform", "translate(" + (chartWidth - iconWidth - 8) + "," + (iconY) + ")")
-                        .append("path")
-                        .attr("d", "M24,16c0,1.4-0.4,2.8-1,4c-0.7,1.2-1.7,2.2-2.9,2.9c-1.2,0.7-2.5,1-4,1s-2.8-0.4-4-1c-1.2-0.7-2.2-1.7-2.9-2.9 C8.4,18.8,8,17.4,8,16c0-1.5,0.4-2.8,1.1-4c0.8-1.2,1.7-2.2,2.9-2.9S14.6,8,16,8s2.8,0.3,4,1.1c1.2,0.7,2.2,1.7,2.9,2.9 C23.6,13.2,24,14.5,24,16z M12.6,22c1.1,0.6,2.2 0.9,3.4,0.9s2.4-0.3,3.5-0.9c1-0.6,1.9-1.5,2.5-2.6c0.6-1,1-2.2,1-3.4 s-0.3-2.4-1-3.5s-1.5-1.9-2.5-2.5c-1.1-0.6-2.2-1-3.5-1s-2.4,0.4-3.4,1c-1.1,0.6-1.9,1.4-2.6,2.5c-0.6,1.1-0.9,2.2-0.9,3.5 c0,1.2,0.3,2.4,0.9,3.4C10.6,20.5,11.4,21.4,12.6,22z M16.5,17.6h-1v-5.4h1V17.6z M16.5 19.7h-1v-1.1h1V19.7z")
-                        .attr("fill", "#3599B8")
-                        .attr("stroke", "transparent")
-                        .attr("stroke-width", "5") // fills in path so that title tooltip will show
-                        .attr("class", "info-icon")
-                        .attr("transform", iconScaleTransform)
-                        .classed(this.sizeCssClass, true)
-                        .append("title")
-                            .text("Data is " + dataDaysOld + " days old. " + this.data.staleDataTooltipText);
-             }
-
-            let dayRange = this.getDaysBetween(this.data.topValues[0].date, this.data.topValues[this.data.topValues.length-1].date);
-            let dayRangeElement = this.bottomContainer.append("text")
-                .attr("class", "date-range-text")
-                .classed(this.sizeCssClass, true)
-                .attr("text-anchor", "end")
-                .text("last " + dayRange + " days");
-
-            let dayRangeElementWidth = (dayRangeElement.node() as SVGTextElement).getBBox().width;
-            let dayRangeLeft = chartWidth - 8;
-            if(infoIconShowing) {
-                dayRangeLeft -= (iconWidth);// width of icon + 8px padding
-            }
-            dayRangeElement.attr("transform", "translate(" + (dayRangeLeft) + ",0)");
-
-            this.bottomContainer.attr("transform", "translate(5," + ((chartHeight * 2) + chartSpaceBetween + chartTitleElementHeight) + ")")
-            this.bottomContainer.classed("invisible", false);
         }
 
         public destroy(): void {
@@ -353,71 +279,71 @@ module powerbi.extensibility.visual {
         }
 
         private static getTitleText(dataView: DataView): string {
-            return dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.titleText, DualKpi.defaultValues.titleText);
+            return dataView && dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.titleText, DualKpi.defaultValues.titleText);
         }
 
         private static getAbbreviateValues(dataView: DataView): boolean {
-            return dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.abbreviateValues, DualKpi.defaultValues.abbreviateValues);
+            return dataView && dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.abbreviateValues, DualKpi.defaultValues.abbreviateValues);
         }
 
         private static getTopChartToolTipText(dataView: DataView): string {
-            return dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.topChartToolTipText, DualKpi.defaultValues.topChartToolTipText);
+            return dataView && dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.topChartToolTipText, DualKpi.defaultValues.topChartToolTipText);
         }
 
         private static getBottomChartToolTipText(dataView: DataView): string {
-            return dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.bottomChartToolTipText, DualKpi.defaultValues.bottomChartToolTipText);
+            return dataView && dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.bottomChartToolTipText, DualKpi.defaultValues.bottomChartToolTipText);
         }
 
         private static getErrorTooltipText(dataView: DataView): string {
-            return dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.errorTooltipText, DualKpi.defaultValues.errorTooltipText);
+            return dataView && dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.errorTooltipText, DualKpi.defaultValues.errorTooltipText);
         }
 
         private static getShowStaleDataWarning(dataView: DataView): boolean {
-            return dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.showStaleDataWarning, DualKpi.defaultValues.showStaleDataWarning);
+            return dataView && dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.showStaleDataWarning, DualKpi.defaultValues.showStaleDataWarning);
         }
 
         private static getStaleDataTooltipText(dataView: DataView): string {
-            return dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.staleDataTooltipText, DualKpi.defaultValues.staleDataTooltipText);
+            return dataView && dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.staleDataTooltipText, DualKpi.defaultValues.staleDataTooltipText);
         }
 
         private static getStaleDataThreshold(dataView: DataView): number {
-            return dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.staleDataThreshold, DualKpi.defaultValues.staleDataThreshold);
+            return dataView && dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.staleDataThreshold, DualKpi.defaultValues.staleDataThreshold);
         }
 
         private static getTopPercentCalcDate(dataView: DataView): string {
-            return dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.topPercentCalcDate, DualKpi.defaultValues.topPercentCalcDate);
+            return dataView && dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.topPercentCalcDate, DualKpi.defaultValues.topPercentCalcDate);
         }
 
         private static getBottomPercentCalcDate(dataView: DataView): string {
-            return dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.bottomPercentCalcDate, DualKpi.defaultValues.bottomPercentCalcDate);
+            return dataView && dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.bottomPercentCalcDate, DualKpi.defaultValues.bottomPercentCalcDate);
         }
 
         private static getDataColor(dataView: DataView): Fill {
-            return dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.dataColor, { solid: { color: DualKpi.defaultValues.dataColor }});
+            return dataView && dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.dataColor, { solid: { color: DualKpi.defaultValues.dataColor }});
         }
 
         private static getTextColor(dataView: DataView): Fill {
-            return dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.textColor, { solid: { color: DualKpi.defaultValues.textColor }});
+            return dataView && dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.textColor, { solid: { color: DualKpi.defaultValues.textColor }});
         }
 
         private static getOpacity(dataView: DataView): number {
-            return dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.opacity, DualKpi.defaultValues.opacity);
+            return dataView && dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.opacity, DualKpi.defaultValues.opacity);
         }
 
         private static getTopChartAxisMin(dataView: DataView): number {
-            return dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.topChartAxisMin, DualKpi.defaultValues.topChartAxisMin);
+            return dataView && dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.topChartAxisMin, DualKpi.defaultValues.topChartAxisMin);
         }
 
         private static getTopChartAxisMax(dataView: DataView): number {
-            return dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.topChartAxisMax, DualKpi.defaultValues.topChartAxisMax);
+            return dataView && dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.topChartAxisMax, DualKpi.defaultValues.topChartAxisMax);
         }
 
         private static getBottomChartAxisMin(dataView: DataView): number {
-            return dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.bottomChartAxisMin, DualKpi.defaultValues.bottomChartAxisMin);
+            return dataView && dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.bottomChartAxisMin, DualKpi.defaultValues.bottomChartAxisMin);
         }
 
         private static getBottomChartAxisMax(dataView: DataView): number {
-            return dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.bottomChartAxisMax, DualKpi.defaultValues.bottomChartAxisMax);
+            return dataView && dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.bottomChartAxisMax, DualKpi.defaultValues.bottomChartAxisMax);
         }
 
         private getDaysBetween(date1: Date, date2: Date): number {
@@ -539,33 +465,31 @@ module powerbi.extensibility.visual {
                 rows = [],
                 i;
 
-            if (dataView && dataView.metadata && dataView.metadata.columns) {
-                let metadataColumns = dataView.metadata.columns;
-                for (let i = 0; i < metadataColumns.length; i++) {
-                    let col = metadataColumns[i];
-                    if (col.roles) {
-                        // not else ifs because in a column can have multiple roles
-                        if (col.roles["axis"])
-                            axisCol = i;
-                        if (col.roles["topvalues"]) {
-                            topValuesCol = i;
-                            data.topChartName = col.displayName;
-                            topValueFormatSymbol = this.getFormatSymbol(col.format);
-                        }
-                        if (col.roles["bottomvalues"]) {
-                            bottomValuesCol = i;
-                            data.bottomChartName = col.displayName;
-                            bottomValueFormatSymbol = this.getFormatSymbol(col.format);
-                        }
-                        if (col.roles["warningstate"]) {
-                            warningStateCol = i;
-                        }
-                        if (col.roles["toppercentdate"]) {
-                            topPercentDateCol = i;
-                        }
-                        if (col.roles["bottompercentdate"]) {
-                            bottomPercentDateCol = i;
-                        }
+            let metadataColumns = dataView.metadata.columns;
+            for (let i = 0; i < metadataColumns.length; i++) {
+                let col = metadataColumns[i];
+                if (col.roles) {
+                    // not else ifs because in a column can have multiple roles
+                    if (col.roles["axis"])
+                        axisCol = i;
+                    if (col.roles["topvalues"]) {
+                        topValuesCol = i;
+                        data.topChartName = col.displayName;
+                        topValueFormatSymbol = this.getFormatSymbol(col.format);
+                    }
+                    if (col.roles["bottomvalues"]) {
+                        bottomValuesCol = i;
+                        data.bottomChartName = col.displayName;
+                        bottomValueFormatSymbol = this.getFormatSymbol(col.format);
+                    }
+                    if (col.roles["warningstate"]) {
+                        warningStateCol = i;
+                    }
+                    if (col.roles["toppercentdate"]) {
+                        topPercentDateCol = i;
+                    }
+                    if (col.roles["bottompercentdate"]) {
+                        bottomPercentDateCol = i;
                     }
                 }
             }
@@ -608,6 +532,7 @@ module powerbi.extensibility.visual {
             if (warningStateCol) {
                 data.warningState = rows[rows.length -1][warningStateCol];
             }
+
 
             return data;
         }
@@ -673,6 +598,87 @@ module powerbi.extensibility.visual {
         private hideHoverData(hoverDataContainer: d3.Selection<SVGElement>) {
             hoverDataContainer.classed("invisible", true);
             this.bottomContainer.classed("hidden", false);
+        }
+
+        private drawBottomContainer(chartWidth: number, chartHeight: number, chartSpaceBetween: number, chartTitleSpace: number, iconOffset: number): void {
+
+            let warningIconShowing = false;
+            let infoIconShowing = false;
+
+            this.bottomContainer = this.svgRoot.append("g")
+                .attr("class", "bottom-title-container")
+                .classed("invisible", true);
+
+            let chartTitleElement = this.bottomContainer.append("text")
+                .attr("class", "title")
+                .classed(this.sizeCssClass, true)
+                .text(this.data.title);
+
+            let chartTitleElementWidth = (chartTitleElement.node() as SVGTextElement).getBBox().width;
+            let chartTitleElementHeight = (chartTitleElement.node() as SVGTextElement).getBBox().height;
+            let iconWidth = 22;
+            let iconScaleTransform = "";
+            let iconY = (-chartTitleSpace + (chartTitleSpace/2) + iconOffset);
+
+            if (this.size === DualKpiSize.small || this.size === DualKpiSize.extrasmall) {
+                iconScaleTransform = "scale(0.75)";
+                iconWidth = 16;
+            }
+
+            // add warning icon
+            if (this.data.warningState < 0) {
+                this.bottomContainer.append("g")
+                .attr("transform", "translate(0," + (iconY) + ")")
+                .append("path")
+                    .attr("d", "M24,24H8l8-16L24,24z M9.7,23h12.6L16,10.4L9.7,23z M16.5,19.8h-1v-5.4h1V19.8z M16.5,20.8v1.1h-1v-1.1H16.5z")
+                    .attr("fill", "#E81123")
+                    .attr("stroke", "transparent")
+                    .attr("stroke-width", "5") // fills in path so that title tooltip will show
+                    .attr("class", "warning-icon")
+                    .attr("transform", iconScaleTransform)
+                    .classed(this.sizeCssClass, true)
+                    .append("title")
+                            .text(this.data.errorTooltipText);
+
+                // move title over to account for icon
+                chartTitleElement.attr("transform", "translate(" + (iconWidth + 6) + ",0)");
+            }
+
+            // add info icon
+            let today = new Date();
+            let dataDaysOld = this.getDaysBetween(this.data.topValues[this.data.topValues.length-1].date, today);
+            if(dataDaysOld >= this.data.staleDataThreshold && this.data.showStaleDataWarning) {
+                infoIconShowing = true;
+                this.bottomContainer.append("g")
+                    .attr("transform", "translate(" + (chartWidth - iconWidth - 8) + "," + (iconY) + ")")
+                        .append("path")
+                        .attr("d", "M24,16c0,1.4-0.4,2.8-1,4c-0.7,1.2-1.7,2.2-2.9,2.9c-1.2,0.7-2.5,1-4,1s-2.8-0.4-4-1c-1.2-0.7-2.2-1.7-2.9-2.9 C8.4,18.8,8,17.4,8,16c0-1.5,0.4-2.8,1.1-4c0.8-1.2,1.7-2.2,2.9-2.9S14.6,8,16,8s2.8,0.3,4,1.1c1.2,0.7,2.2,1.7,2.9,2.9 C23.6,13.2,24,14.5,24,16z M12.6,22c1.1,0.6,2.2 0.9,3.4,0.9s2.4-0.3,3.5-0.9c1-0.6,1.9-1.5,2.5-2.6c0.6-1,1-2.2,1-3.4 s-0.3-2.4-1-3.5s-1.5-1.9-2.5-2.5c-1.1-0.6-2.2-1-3.5-1s-2.4,0.4-3.4,1c-1.1,0.6-1.9,1.4-2.6,2.5c-0.6,1.1-0.9,2.2-0.9,3.5 c0,1.2,0.3,2.4,0.9,3.4C10.6,20.5,11.4,21.4,12.6,22z M16.5,17.6h-1v-5.4h1V17.6z M16.5 19.7h-1v-1.1h1V19.7z")
+                        .attr("fill", "#3599B8")
+                        .attr("stroke", "transparent")
+                        .attr("stroke-width", "5") // fills in path so that title tooltip will show
+                        .attr("class", "info-icon")
+                        .attr("transform", iconScaleTransform)
+                        .classed(this.sizeCssClass, true)
+                        .append("title")
+                            .text("Data is " + dataDaysOld + " days old. " + this.data.staleDataTooltipText);
+             }
+
+            let dayRange = this.getDaysBetween(this.data.topValues[0].date, this.data.topValues[this.data.topValues.length-1].date);
+            let dayRangeElement = this.bottomContainer.append("text")
+                .attr("class", "date-range-text")
+                .classed(this.sizeCssClass, true)
+                .attr("text-anchor", "end")
+                .text("last " + dayRange + " days");
+
+            let dayRangeElementWidth = (dayRangeElement.node() as SVGTextElement).getBBox().width;
+            let dayRangeLeft = chartWidth - 8;
+            if(infoIconShowing) {
+                dayRangeLeft -= (iconWidth);// width of icon + 8px padding
+            }
+            dayRangeElement.attr("transform", "translate(" + (dayRangeLeft) + ",0)");
+
+            this.bottomContainer.attr("transform", "translate(5," + ((chartHeight * 2) + chartSpaceBetween + chartTitleElementHeight) + ")")
+            this.bottomContainer.classed("invisible", false);
         }
 
         private drawChart(  top: number, width: number, height: number, chartData: Array<IDualKpiDataPoint>,
@@ -773,7 +779,6 @@ module powerbi.extensibility.visual {
 
             /* ADD OVERLAY TEXT ********************************************/
             let percentChange = this.getPercentChange(percentChangeStartPoint.value, chartData[chartData.length-1].value);
-            console.log("do i abbreviate: " + abbreviateValue);
             let formattedValue = abbreviateValue ? this.valueFormatter(latestValue) : this.commaNumberFormatter(Math.round(latestValue));
 
             if (valueAsPercent) {
