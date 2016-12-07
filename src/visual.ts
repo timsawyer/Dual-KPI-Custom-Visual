@@ -61,6 +61,9 @@ module powerbi.extensibility.visual {
         topChartAxisMax: number;
         bottomChartAxisMin: number;
         bottomChartAxisMax: number;
+
+        topChartType: string;
+        bottomChartType: string;
     }
 
     export interface IAxisConfig {
@@ -96,7 +99,10 @@ module powerbi.extensibility.visual {
             topChartAxisMin: null,
             topChartAxisMax: null,
             bottomChartAxisMin: null,
-            bottomChartAxisMax: null
+            bottomChartAxisMax: null,
+
+            topChartType: "area",
+            bottomChartType: "area"
         };
 
         private static properties = {
@@ -118,7 +124,10 @@ module powerbi.extensibility.visual {
             topChartAxisMin:        { objectName: "dualKpiAxis", propertyName: "topChartAxisMin" },
             topChartAxisMax:        { objectName: "dualKpiAxis", propertyName: "topChartAxisMax" },
             bottomChartAxisMin:     { objectName: "dualKpiAxis", propertyName: "bottomChartAxisMin" },
-            bottomChartAxisMax:     { objectName: "dualKpiAxis", propertyName: "bottomChartAxisMax" }
+            bottomChartAxisMax:     { objectName: "dualKpiAxis", propertyName: "bottomChartAxisMax" },
+
+            topChartType:           { objectName: "dualKpiChart", propertyName: "topChartType" },
+            bottomChartType:        { objectName: "dualKpiChart", propertyName: "bottomChartType" }
         };
 
         private dataView: DataView;
@@ -195,8 +204,20 @@ module powerbi.extensibility.visual {
                 let topChartPercentChangeStartPoint = this.getPercentChangeStartPoint(this.data.topValues, this.data.topPercentCalcDate);
                 let bottomChartPercentChangeStartPoint = this.getPercentChangeStartPoint(this.data.bottomValues, this.data.bottomPercentCalcDate);
 
-                this.drawChart(0, chartWidth, chartHeight, this.data.topValues, this.data.topChartName, this.data.topValueAsPercent, this.data.topChartToolTipText, topChartAxisConfig, topChartPercentChangeStartPoint, this.data.abbreviateValues);
-                this.drawChart(chartHeight + chartSpaceBetween, chartWidth, chartHeight, this.data.bottomValues, this.data.bottomChartName, this.data.bottomValueAsPercent, this.data.bottomChartToolTipText, bottomChartAxisConfig, bottomChartPercentChangeStartPoint, this.data.abbreviateValues);
+                // draw top chart
+                this.drawChart( 0, chartWidth, chartHeight, this.data.topValues,
+                                this.data.topChartName, this.data.topValueAsPercent,
+                                this.data.topChartToolTipText, topChartAxisConfig,
+                                topChartPercentChangeStartPoint, this.data.abbreviateValues,
+                                this.data.topChartType
+                            );
+                // draw bottom chart
+                this.drawChart( chartHeight + chartSpaceBetween, chartWidth,
+                                chartHeight, this.data.bottomValues, this.data.bottomChartName,
+                                this.data.bottomValueAsPercent, this.data.bottomChartToolTipText,
+                                bottomChartAxisConfig, bottomChartPercentChangeStartPoint,
+                                this.data.abbreviateValues, this.data.bottomChartType
+                            );
 
                 this.drawBottomContainer(chartWidth, chartHeight, chartTitleSpace, chartSpaceBetween, iconOffset);
             }
@@ -257,6 +278,18 @@ module powerbi.extensibility.visual {
                         }
                     };
                     instances.push(dualKpiAxis);
+                    break;
+                case "dualKpiChart":
+                    let dualKpiChart: VisualObjectInstance = {
+                        objectName: "dualKpiChart",
+                        displayName: "Dual KPI Chart Types",
+                        selector: null,
+                        properties: {
+                            topChartType:    DualKpi.getTopChartType(this.dataView),
+                            bottomChartType: DualKpi.getBottomChartType(this.dataView)
+                        }
+                    };
+                    instances.push(dualKpiChart);
                     break;
             }
             return instances;
@@ -344,6 +377,14 @@ module powerbi.extensibility.visual {
 
         private static getBottomChartAxisMax(dataView: DataView): number {
             return dataView && dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.bottomChartAxisMax, DualKpi.defaultValues.bottomChartAxisMax);
+        }
+
+        private static getTopChartType(dataView: DataView): string {
+            return dataView && dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.topChartType, DualKpi.defaultValues.topChartType);
+        }
+
+        private static getBottomChartType(dataView: DataView): string {
+            return dataView && dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.bottomChartType, DualKpi.defaultValues.bottomChartType);
         }
 
         private getDaysBetween(date1: Date, date2: Date): number {
@@ -460,6 +501,9 @@ module powerbi.extensibility.visual {
             data.bottomChartAxisMin = DualKpi.getBottomChartAxisMin(dataView);
             data.bottomChartAxisMax = DualKpi.getBottomChartAxisMax(dataView);
 
+            data.topChartType = DualKpi.getTopChartType(dataView);
+            data.bottomChartType = DualKpi.getBottomChartType(dataView);
+
             let axisCol = -1, topValuesCol = -1, bottomValuesCol = -1, warningStateCol = -1,
                 topPercentDateCol = -1, bottomPercentDateCol = -1,
                 rows = [],
@@ -532,8 +576,6 @@ module powerbi.extensibility.visual {
             if (warningStateCol) {
                 data.warningState = rows[rows.length -1][warningStateCol];
             }
-
-
             return data;
         }
 
@@ -600,8 +642,7 @@ module powerbi.extensibility.visual {
             this.bottomContainer.classed("hidden", false);
         }
 
-        private drawBottomContainer(chartWidth: number, chartHeight: number, chartSpaceBetween: number, chartTitleSpace: number, iconOffset: number): void {
-
+        private drawBottomContainer(chartWidth: number, chartHeight: number, chartTitleSpace: number, chartSpaceBetween: number, iconOffset: number): void {
             let warningIconShowing = false;
             let infoIconShowing = false;
 
@@ -684,7 +725,7 @@ module powerbi.extensibility.visual {
         private drawChart(  top: number, width: number, height: number, chartData: Array<IDualKpiDataPoint>,
                             chartTitle: string, valueAsPercent: boolean, tooltipText: string,
                             axisConfig: IAxisConfig, percentChangeStartPoint: IDualKpiDataPoint,
-                            abbreviateValue: boolean): void
+                            abbreviateValue: boolean, chartType: string): void
         {
             let axisNumberFormatter = d3.format(".2s");
             let latestValue = chartData[chartData.length-1].value;
@@ -725,17 +766,36 @@ module powerbi.extensibility.visual {
                 })
                 .orient("left");
 
-            let area = d3.svg.area()
-                .x((d: any) => xScale(d.date))
-                .y0(calcHeight)
-                .y1((d: any) => yScale(d.value));
+            let seriesRenderer, fill, stroke, strokeWidth;
+
+            if (chartType === "area"){
+                seriesRenderer = d3.svg.area()
+                    .x((d: any) => xScale(d.date))
+                    .y0(calcHeight)
+                    .y1((d: any) => yScale(d.value));
+
+                fill = this.data.dataColor;
+                stroke = "none";
+                strokeWidth = 0;
+            }
+            else {
+                seriesRenderer = d3.svg.line()
+                    .x((d: any) => xScale(d.date))
+                    .y((d: any) => yScale(d.value));
+
+                fill = "none";
+                stroke = this.data.dataColor;
+                strokeWidth = 2;
+            }
 
             chartGroup.append("path")
                 .datum(chartData)
                 .attr("class", "area")
                 .attr("style", "opacity: " + (this.data.opacity / 100))
-                .attr("fill", this.data.dataColor)
-                .attr("d", area as any);
+                .attr("fill", fill)
+                .attr("stroke", stroke)
+                .attr("stroke-width", strokeWidth)
+                .attr("d", seriesRenderer as any);
 
             chartGroup.append("g")
                 .attr("class", "axis")

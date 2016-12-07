@@ -147,6 +147,29 @@
                     "type": { "numeric": true }
                 }
             }
+        },
+        "dualKpiChart": {
+            "displayName": "Dual KPI Chart Type",
+            "properties": {
+                "topChartType": {
+                    "displayName": "Top chart type",
+                    "type": {
+                        "enumeration":  [
+                            { "value": "area",    "displayName": "Area" },
+                            { "value": "line",    "displayName": "Line" }
+                        ]
+                    }
+                },
+                "bottomChartType": {
+                    "displayName": "Bottom chart type",
+                    "type": {
+                        "enumeration":  [
+                            { "value": "area",    "displayName": "Area" },
+                            { "value": "line",    "displayName": "Line" }
+                        ]
+                    }
+                }
+            }
         }
     }
 }
