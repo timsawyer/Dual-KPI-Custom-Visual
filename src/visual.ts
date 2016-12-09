@@ -154,6 +154,7 @@ module powerbi.extensibility.visual {
         }
 
         public update(options: VisualUpdateOptions) {
+            console.log("in dual visual update");
             this.svgRoot.selectAll("*").remove();
             this.dataView = options.dataViews[0];
 
