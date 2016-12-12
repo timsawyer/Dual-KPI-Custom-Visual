@@ -145,6 +145,14 @@
                 "bottomChartAxisMax": {
                     "displayName": "Bottom chart axis max",
                     "type": { "numeric": true }
+                },
+                "topChartZeroLine": {
+                    "displayName": "Top chart zero line",
+                    "type": { "bool": true }
+                },
+                "bottomChartZeroLine": {
+                    "displayName": "Bottom chart zero line",
+                    "type": { "bool": true }
                 }
             }
         },

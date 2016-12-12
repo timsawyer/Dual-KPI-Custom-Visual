@@ -61,6 +61,9 @@ module powerbi.extensibility.visual {
         topChartAxisMax: number;
         bottomChartAxisMin: number;
         bottomChartAxisMax: number;
+        topChartZeroLine: boolean;
+        bottomChartZeroLine: boolean;
+
 
         topChartType: string;
         bottomChartType: string;
@@ -100,6 +103,8 @@ module powerbi.extensibility.visual {
             topChartAxisMax: null,
             bottomChartAxisMin: null,
             bottomChartAxisMax: null,
+            topChartZeroLine: false,
+            bottomChartZeroLine: false,
 
             topChartType: "area",
             bottomChartType: "area"
@@ -125,6 +130,8 @@ module powerbi.extensibility.visual {
             topChartAxisMax:        { objectName: "dualKpiAxis", propertyName: "topChartAxisMax" },
             bottomChartAxisMin:     { objectName: "dualKpiAxis", propertyName: "bottomChartAxisMin" },
             bottomChartAxisMax:     { objectName: "dualKpiAxis", propertyName: "bottomChartAxisMax" },
+            topChartZeroLine:       { objectName: "dualKpiAxis", propertyName: "topChartZeroLine" },
+            bottomChartZeroLine:    { objectName: "dualKpiAxis", propertyName: "bottomChartZeroLine" },
 
             topChartType:           { objectName: "dualKpiChart", propertyName: "topChartType" },
             bottomChartType:        { objectName: "dualKpiChart", propertyName: "bottomChartType" }
@@ -210,14 +217,14 @@ module powerbi.extensibility.visual {
                                 this.data.topChartName, this.data.topValueAsPercent,
                                 this.data.topChartToolTipText, topChartAxisConfig,
                                 topChartPercentChangeStartPoint, this.data.abbreviateValues,
-                                this.data.topChartType
+                                this.data.topChartType, this.data.topChartZeroLine
                             );
                 // draw bottom chart
                 this.drawChart( chartHeight + chartSpaceBetween, chartWidth,
                                 chartHeight, this.data.bottomValues, this.data.bottomChartName,
                                 this.data.bottomValueAsPercent, this.data.bottomChartToolTipText,
                                 bottomChartAxisConfig, bottomChartPercentChangeStartPoint,
-                                this.data.abbreviateValues, this.data.bottomChartType
+                                this.data.abbreviateValues, this.data.bottomChartType, this.data.bottomChartZeroLine
                             );
 
                 this.drawBottomContainer(chartWidth, chartHeight, chartTitleSpace, chartSpaceBetween, iconOffset);
@@ -272,10 +279,12 @@ module powerbi.extensibility.visual {
                         displayName: "Dual KPI Axis Settings",
                         selector: null,
                         properties: {
-                            topChartAxisMin:    DualKpi.getTopChartAxisMin(this.dataView),
-                            topChartAxisMax:    DualKpi.getTopChartAxisMax(this.dataView),
-                            bottomChartAxisMin: DualKpi.getBottomChartAxisMin(this.dataView),
-                            bottomChartAxisMax: DualKpi.getBottomChartAxisMax(this.dataView)
+                            topChartAxisMin:        DualKpi.getTopChartAxisMin(this.dataView),
+                            topChartAxisMax:        DualKpi.getTopChartAxisMax(this.dataView),
+                            bottomChartAxisMin:     DualKpi.getBottomChartAxisMin(this.dataView),
+                            bottomChartAxisMax:     DualKpi.getBottomChartAxisMax(this.dataView),
+                            topChartZeroLine:       DualKpi.getTopChartZeroLine(this.dataView),
+                            bottomChartZeroLine:    DualKpi.getBottomChartZeroLine(this.dataView)
                         }
                     };
                     instances.push(dualKpiAxis);
@@ -378,6 +387,14 @@ module powerbi.extensibility.visual {
 
         private static getBottomChartAxisMax(dataView: DataView): number {
             return dataView && dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.bottomChartAxisMax, DualKpi.defaultValues.bottomChartAxisMax);
+        }
+
+        private static getTopChartZeroLine(dataView: DataView): boolean {
+            return dataView && dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.topChartZeroLine, DualKpi.defaultValues.topChartZeroLine);
+        }
+
+        private static getBottomChartZeroLine(dataView: DataView): boolean {
+            return dataView && dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.bottomChartZeroLine, DualKpi.defaultValues.bottomChartZeroLine);
         }
 
         private static getTopChartType(dataView: DataView): string {
@@ -501,6 +518,8 @@ module powerbi.extensibility.visual {
             data.topChartAxisMax = DualKpi.getTopChartAxisMax(dataView);
             data.bottomChartAxisMin = DualKpi.getBottomChartAxisMin(dataView);
             data.bottomChartAxisMax = DualKpi.getBottomChartAxisMax(dataView);
+            data.topChartZeroLine = DualKpi.getTopChartZeroLine(dataView);
+            data.bottomChartZeroLine = DualKpi.getBottomChartZeroLine(dataView);
 
             data.topChartType = DualKpi.getTopChartType(dataView);
             data.bottomChartType = DualKpi.getBottomChartType(dataView);
@@ -726,7 +745,7 @@ module powerbi.extensibility.visual {
         private drawChart(  top: number, width: number, height: number, chartData: Array<IDualKpiDataPoint>,
                             chartTitle: string, valueAsPercent: boolean, tooltipText: string,
                             axisConfig: IAxisConfig, percentChangeStartPoint: IDualKpiDataPoint,
-                            abbreviateValue: boolean, chartType: string): void
+                            abbreviateValue: boolean, chartType: string, showZeroLine: boolean): void
         {
             let axisNumberFormatter = d3.format(".2s");
             let latestValue = chartData[chartData.length-1].value;
@@ -797,6 +816,18 @@ module powerbi.extensibility.visual {
                 .attr("stroke", stroke)
                 .attr("stroke-width", strokeWidth)
                 .attr("d", seriesRenderer as any);
+
+            // DRAW line for x axis at zero position
+            if (showZeroLine) {
+                let axisLine = d3.svg.line()
+                    .x((d: any) => xScale(d.date))
+                    .y((d: any) => yScale(0));
+
+                chartGroup.append("path")
+                    .datum(chartData)
+                    .attr("class", "zero-axis")
+                    .attr("d", axisLine as any);
+            }
 
             chartGroup.append("g")
                 .attr("class", "axis")
