@@ -161,7 +161,6 @@ module powerbi.extensibility.visual {
         }
 
         public update(options: VisualUpdateOptions) {
-            console.log("in dual visual update");
             this.svgRoot.selectAll("*").remove();
             this.dataView = options.dataViews[0];
 
@@ -845,9 +844,15 @@ module powerbi.extensibility.visual {
             let chartLeft = margin.left;
             let hoverDataContainer = this.createHoverDataContainer(chartBottom, chartLeft, calcWidth);
 
-            this.target.addEventListener("mousemove", (e: MouseEvent) => {
+            let mousemove = (e: any) => {
                 let leftPosition = e.clientX - margin.left;
                 let topPosition = e.clientY;
+
+                if (e.type === "touchmove" || e.type === "touchstart") {
+                    leftPosition = e.touches[0].clientX;
+                    topPosition = e.touches[0].clientY;
+                }
+
                 if(leftPosition > 0 && leftPosition < width && topPosition < (height*2 + 15)) {
                     hoverLine.classed("hidden", false);
                     hoverLine.attr("transform", "translate(" + leftPosition + ",0)");
@@ -856,18 +861,28 @@ module powerbi.extensibility.visual {
                     let i = this.dataBisector(chartData, x, 1);
                     let dataPoint = chartData[i];
 
-                    this.showHoverData(hoverDataContainer, dataPoint, latestValue, valueAsPercent, abbreviateValue);
+                    if (dataPoint) {
+                        this.showHoverData(hoverDataContainer, dataPoint, latestValue, valueAsPercent, abbreviateValue);
+                    }
                 }
                 else {
                     hoverLine.classed("hidden", true);
                     this.hideHoverData(hoverDataContainer);
                 }
-            }, true);
+            };
 
-            this.target.addEventListener("mouseout", (e: MouseEvent) => {
+            this.target.addEventListener("mousemove", mousemove, true);
+            this.target.addEventListener("touchmove", mousemove, true);
+            this.target.addEventListener("touchstart", mousemove, true);
+
+
+            let mouseout = (e: MouseEvent) => {
                 hoverLine.classed("hidden", true);
                 this.hideHoverData(hoverDataContainer);
-            }, true);
+            };
+
+            this.target.addEventListener("mouseout", mouseout, true);
+            this.target.addEventListener("touchleave", mouseout, true);
 
             /* ADD OVERLAY TEXT ********************************************/
             let percentChange = this.getPercentChange(percentChangeStartPoint.value, chartData[chartData.length-1].value);
