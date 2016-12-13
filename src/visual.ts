@@ -154,6 +154,7 @@ module powerbi.extensibility.visual {
 
         constructor(options: VisualConstructorOptions) {
             this.target = options.element;
+            d3.select(this.target.parentNode).attr("style", "-webkit-tap-highlight-color: transparent;");
             this.svgRoot = d3.select(this.target).append("svg").attr("class", "dualKpi");
             this.size = DualKpiSize.small;
             this.sizeCssClass = "small";
@@ -886,8 +887,8 @@ module powerbi.extensibility.visual {
                 let topPosition = e.clientY;
 
                 if (e.type === "touchmove" || e.type === "touchstart") {
-                    leftPosition = e.touches[0].clientX - (this.chartLeftMargin + (e.touches[0].radiusX /2) );
-                    topPosition = e.touches[0].clientY - e.touches[0].radiusY;
+                    leftPosition = e.touches[0].clientX - this.chartLeftMargin;
+                    topPosition = e.touches[0].clientY;
                 }
 
                 if(leftPosition > 0 && leftPosition < width && topPosition < (height*2 + 15)) {
