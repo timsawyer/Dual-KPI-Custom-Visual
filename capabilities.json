@@ -41,7 +41,6 @@
                     "warningstate": { "max": 1 },
                     "toppercentdate": { "max": 1 },
                     "bottompercentdate": { "max": 1 }
-
                 }
             ],
             "categorical": {

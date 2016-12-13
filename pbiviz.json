@@ -2,7 +2,7 @@
   "visual": {
     "name": "dualKpi",
     "displayName": "Dual KPI",
-    "guid": "PBI_CV_627F3ED1_F203_4A51_BFE0_DFD6D9282E67",
+    "guid": "PBI_CV_80313E22_B601_4912_BE89_1BB32597B325",
     "visualClassName": "DualKpi",
     "version": "1.0.1",
     "description": "Visual for displaying and comparing two KPI's",

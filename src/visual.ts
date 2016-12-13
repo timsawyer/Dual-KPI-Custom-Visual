@@ -144,10 +144,13 @@ module powerbi.extensibility.visual {
         private sizeCssClass: string;
         private svgRoot: d3.Selection<SVGElement>;
         private bottomContainer: d3.Selection<SVGElement>;
+        private mobileTooltip: d3.Selection<SVGElement>;
         private valueFormatter: Function;
         private commaNumberFormatter: Function;
         private timeFormatter: Function;
         private dataBisector: Function;
+
+        private chartLeftMargin = 30;
 
         constructor(options: VisualConstructorOptions) {
             this.target = options.element;
@@ -631,6 +634,32 @@ module powerbi.extensibility.visual {
             return hoverDataContainer;
         }
 
+        /*
+        *   to show tooltip information on mobile we show a popup on touch event
+        */
+        private showMobileTooltip(message: string) {
+            if (!this.mobileTooltip) {
+                this.mobileTooltip = d3.select(this.target).append("div")
+                    .classed({"hidden": true, "mobile-tooltip": true});
+
+                this.svgRoot.on("touchstart", () => {
+                    this.hideMobileTooltip();
+                });
+
+                this.mobileTooltip.on("touchstart", () => {
+                    this.hideMobileTooltip();
+                });
+            }
+            (d3.event as TouchEvent).stopPropagation(); // prevent hide from being called
+
+            this.mobileTooltip.html(message);
+            this.mobileTooltip.classed("hidden", false);
+        }
+
+        private hideMobileTooltip() {
+            this.mobileTooltip.classed("hidden", true);
+        }
+
         private showHoverData(hoverDataContainer: d3.Selection<SVGElement>, dataPoint: IDualKpiDataPoint, latestValue: number, valueAsPercent: boolean, abbreviateValue: boolean) {
             hoverDataContainer.select(".hover-text.date")
                 .datum(dataPoint)
@@ -687,9 +716,10 @@ module powerbi.extensibility.visual {
 
             // add warning icon
             if (this.data.warningState < 0) {
-                this.bottomContainer.append("g")
-                .attr("transform", "translate(0," + (iconY) + ")")
-                .append("path")
+                let warningGroup = this.bottomContainer.append("g")
+                .attr("transform", "translate(0," + (iconY) + ")");
+
+                warningGroup.append("path")
                     .attr("d", "M24,24H8l8-16L24,24z M9.7,23h12.6L16,10.4L9.7,23z M16.5,19.8h-1v-5.4h1V19.8z M16.5,20.8v1.1h-1v-1.1H16.5z")
                     .attr("fill", "#E81123")
                     .attr("stroke", "transparent")
@@ -702,6 +732,8 @@ module powerbi.extensibility.visual {
 
                 // move title over to account for icon
                 chartTitleElement.attr("transform", "translate(" + (iconWidth + 6) + ",0)");
+
+                warningGroup.on("touchstart", () => this.showMobileTooltip(this.data.errorTooltipText));
             }
 
             // add info icon
@@ -709,20 +741,25 @@ module powerbi.extensibility.visual {
             let dataDaysOld = this.getDaysBetween(this.data.topValues[this.data.topValues.length-1].date, today);
             if(dataDaysOld >= this.data.staleDataThreshold && this.data.showStaleDataWarning) {
                 infoIconShowing = true;
-                this.bottomContainer.append("g")
-                    .attr("transform", "translate(" + (chartWidth - iconWidth - 8) + "," + (iconY) + ")")
-                        .append("path")
-                        .attr("d", "M24,16c0,1.4-0.4,2.8-1,4c-0.7,1.2-1.7,2.2-2.9,2.9c-1.2,0.7-2.5,1-4,1s-2.8-0.4-4-1c-1.2-0.7-2.2-1.7-2.9-2.9 C8.4,18.8,8,17.4,8,16c0-1.5,0.4-2.8,1.1-4c0.8-1.2,1.7-2.2,2.9-2.9S14.6,8,16,8s2.8,0.3,4,1.1c1.2,0.7,2.2,1.7,2.9,2.9 C23.6,13.2,24,14.5,24,16z M12.6,22c1.1,0.6,2.2 0.9,3.4,0.9s2.4-0.3,3.5-0.9c1-0.6,1.9-1.5,2.5-2.6c0.6-1,1-2.2,1-3.4 s-0.3-2.4-1-3.5s-1.5-1.9-2.5-2.5c-1.1-0.6-2.2-1-3.5-1s-2.4,0.4-3.4,1c-1.1,0.6-1.9,1.4-2.6,2.5c-0.6,1.1-0.9,2.2-0.9,3.5 c0,1.2,0.3,2.4,0.9,3.4C10.6,20.5,11.4,21.4,12.6,22z M16.5,17.6h-1v-5.4h1V17.6z M16.5 19.7h-1v-1.1h1V19.7z")
-                        .attr("fill", "#3599B8")
-                        .attr("stroke", "transparent")
-                        .attr("stroke-width", "5") // fills in path so that title tooltip will show
-                        .attr("class", "info-icon")
-                        .attr("transform", iconScaleTransform)
-                        .classed(this.sizeCssClass, true)
-                        .append("title")
-                            .text("Data is " + dataDaysOld + " days old. " + this.data.staleDataTooltipText);
+                let infoMessage = "Data is " + dataDaysOld + " days old. " + this.data.staleDataTooltipText;
+                let infoGroup = this.bottomContainer.append("g")
+                    .attr("transform", "translate(" + (chartWidth - iconWidth - 8) + "," + (iconY) + ")");
+
+                infoGroup.append("path")
+                    .attr("d", "M24,16c0,1.4-0.4,2.8-1,4c-0.7,1.2-1.7,2.2-2.9,2.9c-1.2,0.7-2.5,1-4,1s-2.8-0.4-4-1c-1.2-0.7-2.2-1.7-2.9-2.9 C8.4,18.8,8,17.4,8,16c0-1.5,0.4-2.8,1.1-4c0.8-1.2,1.7-2.2,2.9-2.9S14.6,8,16,8s2.8,0.3,4,1.1c1.2,0.7,2.2,1.7,2.9,2.9 C23.6,13.2,24,14.5,24,16z M12.6,22c1.1,0.6,2.2 0.9,3.4,0.9s2.4-0.3,3.5-0.9c1-0.6,1.9-1.5,2.5-2.6c0.6-1,1-2.2,1-3.4 s-0.3-2.4-1-3.5s-1.5-1.9-2.5-2.5c-1.1-0.6-2.2-1-3.5-1s-2.4,0.4-3.4,1c-1.1,0.6-1.9,1.4-2.6,2.5c-0.6,1.1-0.9,2.2-0.9,3.5 c0,1.2,0.3,2.4,0.9,3.4C10.6,20.5,11.4,21.4,12.6,22z M16.5,17.6h-1v-5.4h1V17.6z M16.5 19.7h-1v-1.1h1V19.7z")
+                    .attr("fill", "#3599B8")
+                    .attr("stroke", "transparent")
+                    .attr("stroke-width", "5") // fills in path so that title tooltip will show
+                    .attr("class", "info-icon")
+                    .attr("transform", iconScaleTransform)
+                    .classed(this.sizeCssClass, true)
+                    .append("title")
+                        .text(infoMessage);
+
+                infoGroup.on("touchstart", () => this.showMobileTooltip(infoMessage));
              }
 
+            // add day range text
             let dayRange = this.getDaysBetween(this.data.topValues[0].date, this.data.topValues[this.data.topValues.length-1].date);
             let dayRangeElement = this.bottomContainer.append("text")
                 .attr("class", "date-range-text")
@@ -749,7 +786,7 @@ module powerbi.extensibility.visual {
             let axisNumberFormatter = d3.format(".2s");
             let latestValue = chartData[chartData.length-1].value;
 
-            let margin = {top: 5, right: 0, bottom: 0, left: 30};
+            let margin = {top: 5, right: 0, bottom: 0, left: this.chartLeftMargin};
             if(this.size === DualKpiSize.medium || this.size === DualKpiSize.large) {
                 margin.left = 40;
             }
@@ -849,8 +886,8 @@ module powerbi.extensibility.visual {
                 let topPosition = e.clientY;
 
                 if (e.type === "touchmove" || e.type === "touchstart") {
-                    leftPosition = e.touches[0].clientX;
-                    topPosition = e.touches[0].clientY;
+                    leftPosition = e.touches[0].clientX - (this.chartLeftMargin + (e.touches[0].radiusX /2) );
+                    topPosition = e.touches[0].clientY - e.touches[0].radiusY;
                 }
 
                 if(leftPosition > 0 && leftPosition < width && topPosition < (height*2 + 15)) {
@@ -929,12 +966,16 @@ module powerbi.extensibility.visual {
             // set rect dimensions
             // add rect to overlay section so that tooltip shows up more easily
             let overlayRect = chartOverlayTextGroup.append("rect").attr("style", "stroke: none; fill: #000;opacity:0;");
+
             // add tooltip
             let percentChangeDesc = percentChange + " change since " + this.timeFormatter(percentChangeStartPoint.date);
-            overlayRect.append("title").text(tooltipText + " " + percentChangeDesc);
+            let overlayTooltipText = tooltipText + " " + percentChangeDesc;
+            overlayRect.append("title").text(overlayTooltipText);
             overlayRect.attr("width", dataTitleWidth)
                 .attr("height", dataTitleHeight + dataValueHeight)
                 .attr("transform", "translate(" + dataTitleHorzCentering + "," + (-dataTitleHeight) + ")");
+
+            overlayRect.on("touchstart", () => this.showMobileTooltip(overlayTooltipText));
         }
 
 
