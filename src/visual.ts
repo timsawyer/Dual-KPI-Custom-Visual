@@ -151,6 +151,7 @@ module powerbi.extensibility.visual {
         private dataBisector: Function;
 
         private chartLeftMargin = 30;
+        private touchEventsEnabled: boolean = false;
 
         constructor(options: VisualConstructorOptions) {
             this.target = options.element;
@@ -650,8 +651,12 @@ module powerbi.extensibility.visual {
                 this.mobileTooltip.on("touchstart", () => {
                     this.hideMobileTooltip();
                 });
+
+                this.touchEventsEnabled = true;
             }
-            (d3.event as TouchEvent).stopPropagation(); // prevent hide from being called
+            // prevent hide from being called, and prevent hover interaction from occuring on same event
+            console.log("stopping prop");
+            (d3.event as TouchEvent).stopPropagation();
 
             this.mobileTooltip.html(message);
             this.mobileTooltip.classed("hidden", false);
@@ -883,6 +888,7 @@ module powerbi.extensibility.visual {
             let hoverDataContainer = this.createHoverDataContainer(chartBottom, chartLeft, calcWidth);
 
             let mousemove = (e: any) => {
+                console.log(e.type);
                 let leftPosition = e.clientX - margin.left;
                 let topPosition = e.clientY;
 
@@ -909,10 +915,9 @@ module powerbi.extensibility.visual {
                 }
             };
 
-            this.target.addEventListener("mousemove", mousemove, true);
-            this.target.addEventListener("touchmove", mousemove, true);
-            this.target.addEventListener("touchstart", mousemove, true);
-
+            this.target.addEventListener("mousemove", mousemove);
+            this.target.addEventListener("touchmove", mousemove);
+            this.target.addEventListener("touchstart", mousemove);
 
             let mouseout = (e: MouseEvent) => {
                 hoverLine.classed("hidden", true);
@@ -977,6 +982,11 @@ module powerbi.extensibility.visual {
                 .attr("transform", "translate(" + dataTitleHorzCentering + "," + (-dataTitleHeight) + ")");
 
             overlayRect.on("touchstart", () => this.showMobileTooltip(overlayTooltipText));
+            overlayRect.on("mousemove", () => {
+                if (this.touchEventsEnabled) {
+                    (d3.event as Event).stopPropagation();
+                }
+            });
         }
 
 
