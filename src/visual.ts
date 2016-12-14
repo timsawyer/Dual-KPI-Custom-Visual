@@ -217,19 +217,27 @@ module powerbi.extensibility.visual {
                 let bottomChartPercentChangeStartPoint = this.getPercentChangeStartPoint(this.data.bottomValues, this.data.bottomPercentCalcDate);
 
                 // draw top chart
-                this.drawChart( 0, chartWidth, chartHeight, this.data.topValues,
-                                this.data.topChartName, this.data.topValueAsPercent,
-                                this.data.topChartToolTipText, topChartAxisConfig,
-                                topChartPercentChangeStartPoint, this.data.abbreviateValues,
-                                this.data.topChartType, this.data.topChartZeroLine
-                            );
+                if (this.data.topValues.length > 0)
+                {
+                    this.drawChart( 0, chartWidth, chartHeight, this.data.topValues,
+                                    this.data.topChartName, this.data.topValueAsPercent,
+                                    this.data.topChartToolTipText, topChartAxisConfig,
+                                    topChartPercentChangeStartPoint, this.data.abbreviateValues,
+                                    this.data.topChartType, this.data.topChartZeroLine
+                                );
+                }
+
+
                 // draw bottom chart
-                this.drawChart( chartHeight + chartSpaceBetween, chartWidth,
-                                chartHeight, this.data.bottomValues, this.data.bottomChartName,
-                                this.data.bottomValueAsPercent, this.data.bottomChartToolTipText,
-                                bottomChartAxisConfig, bottomChartPercentChangeStartPoint,
-                                this.data.abbreviateValues, this.data.bottomChartType, this.data.bottomChartZeroLine
-                            );
+                if (this.data.topValues.length > 0)
+                {
+                    this.drawChart( chartHeight + chartSpaceBetween, chartWidth,
+                                    chartHeight, this.data.bottomValues, this.data.bottomChartName,
+                                    this.data.bottomValueAsPercent, this.data.bottomChartToolTipText,
+                                    bottomChartAxisConfig, bottomChartPercentChangeStartPoint,
+                                    this.data.abbreviateValues, this.data.bottomChartType, this.data.bottomChartZeroLine
+                                );
+                }
 
                 this.drawBottomContainer(chartWidth, chartHeight, chartTitleSpace, chartSpaceBetween, iconOffset);
             }
@@ -597,7 +605,7 @@ module powerbi.extensibility.visual {
                 });
             }
 
-            if (warningStateCol) {
+            if (warningStateCol > -1) {
                 data.warningState = rows[rows.length -1][warningStateCol];
             }
             return data;
@@ -743,42 +751,44 @@ module powerbi.extensibility.visual {
             }
 
             // add info icon
-            let today = new Date();
-            let dataDaysOld = this.getDaysBetween(this.data.topValues[this.data.topValues.length-1].date, today);
-            if(dataDaysOld >= this.data.staleDataThreshold && this.data.showStaleDataWarning) {
-                infoIconShowing = true;
-                let infoMessage = "Data is " + dataDaysOld + " days old. " + this.data.staleDataTooltipText;
-                let infoGroup = this.bottomContainer.append("g")
-                    .attr("transform", "translate(" + (chartWidth - iconWidth - 8) + "," + (iconY) + ")");
+            if (this.data.topValues.length > 0) {
+                let today = new Date();
+                let dataDaysOld = this.getDaysBetween(this.data.topValues[this.data.topValues.length-1].date, today);
+                if(dataDaysOld >= this.data.staleDataThreshold && this.data.showStaleDataWarning) {
+                    infoIconShowing = true;
+                    let infoMessage = "Data is " + dataDaysOld + " days old. " + this.data.staleDataTooltipText;
+                    let infoGroup = this.bottomContainer.append("g")
+                        .attr("transform", "translate(" + (chartWidth - iconWidth - 8) + "," + (iconY) + ")");
 
-                infoGroup.append("path")
-                    .attr("d", "M24,16c0,1.4-0.4,2.8-1,4c-0.7,1.2-1.7,2.2-2.9,2.9c-1.2,0.7-2.5,1-4,1s-2.8-0.4-4-1c-1.2-0.7-2.2-1.7-2.9-2.9 C8.4,18.8,8,17.4,8,16c0-1.5,0.4-2.8,1.1-4c0.8-1.2,1.7-2.2,2.9-2.9S14.6,8,16,8s2.8,0.3,4,1.1c1.2,0.7,2.2,1.7,2.9,2.9 C23.6,13.2,24,14.5,24,16z M12.6,22c1.1,0.6,2.2 0.9,3.4,0.9s2.4-0.3,3.5-0.9c1-0.6,1.9-1.5,2.5-2.6c0.6-1,1-2.2,1-3.4 s-0.3-2.4-1-3.5s-1.5-1.9-2.5-2.5c-1.1-0.6-2.2-1-3.5-1s-2.4,0.4-3.4,1c-1.1,0.6-1.9,1.4-2.6,2.5c-0.6,1.1-0.9,2.2-0.9,3.5 c0,1.2,0.3,2.4,0.9,3.4C10.6,20.5,11.4,21.4,12.6,22z M16.5,17.6h-1v-5.4h1V17.6z M16.5 19.7h-1v-1.1h1V19.7z")
-                    .attr("fill", "#3599B8")
-                    .attr("stroke", "transparent")
-                    .attr("stroke-width", "5") // fills in path so that title tooltip will show
-                    .attr("class", "info-icon")
-                    .attr("transform", iconScaleTransform)
+                    infoGroup.append("path")
+                        .attr("d", "M24,16c0,1.4-0.4,2.8-1,4c-0.7,1.2-1.7,2.2-2.9,2.9c-1.2,0.7-2.5,1-4,1s-2.8-0.4-4-1c-1.2-0.7-2.2-1.7-2.9-2.9 C8.4,18.8,8,17.4,8,16c0-1.5,0.4-2.8,1.1-4c0.8-1.2,1.7-2.2,2.9-2.9S14.6,8,16,8s2.8,0.3,4,1.1c1.2,0.7,2.2,1.7,2.9,2.9 C23.6,13.2,24,14.5,24,16z M12.6,22c1.1,0.6,2.2 0.9,3.4,0.9s2.4-0.3,3.5-0.9c1-0.6,1.9-1.5,2.5-2.6c0.6-1,1-2.2,1-3.4 s-0.3-2.4-1-3.5s-1.5-1.9-2.5-2.5c-1.1-0.6-2.2-1-3.5-1s-2.4,0.4-3.4,1c-1.1,0.6-1.9,1.4-2.6,2.5c-0.6,1.1-0.9,2.2-0.9,3.5 c0,1.2,0.3,2.4,0.9,3.4C10.6,20.5,11.4,21.4,12.6,22z M16.5,17.6h-1v-5.4h1V17.6z M16.5 19.7h-1v-1.1h1V19.7z")
+                        .attr("fill", "#3599B8")
+                        .attr("stroke", "transparent")
+                        .attr("stroke-width", "5") // fills in path so that title tooltip will show
+                        .attr("class", "info-icon")
+                        .attr("transform", iconScaleTransform)
+                        .classed(this.sizeCssClass, true)
+                        .append("title")
+                            .text(infoMessage);
+
+                    infoGroup.on("touchstart", () => this.showMobileTooltip(infoMessage));
+                }
+
+                // add day range text
+                let dayRange = this.getDaysBetween(this.data.topValues[0].date, this.data.topValues[this.data.topValues.length-1].date);
+                let dayRangeElement = this.bottomContainer.append("text")
+                    .attr("class", "date-range-text")
                     .classed(this.sizeCssClass, true)
-                    .append("title")
-                        .text(infoMessage);
+                    .attr("text-anchor", "end")
+                    .text("last " + dayRange + " days");
 
-                infoGroup.on("touchstart", () => this.showMobileTooltip(infoMessage));
-             }
-
-            // add day range text
-            let dayRange = this.getDaysBetween(this.data.topValues[0].date, this.data.topValues[this.data.topValues.length-1].date);
-            let dayRangeElement = this.bottomContainer.append("text")
-                .attr("class", "date-range-text")
-                .classed(this.sizeCssClass, true)
-                .attr("text-anchor", "end")
-                .text("last " + dayRange + " days");
-
-            let dayRangeElementWidth = (dayRangeElement.node() as SVGTextElement).getBBox().width;
-            let dayRangeLeft = chartWidth - 8;
-            if(infoIconShowing) {
-                dayRangeLeft -= (iconWidth);// width of icon + 8px padding
+                let dayRangeElementWidth = (dayRangeElement.node() as SVGTextElement).getBBox().width;
+                let dayRangeLeft = chartWidth - 8;
+                if(infoIconShowing) {
+                    dayRangeLeft -= (iconWidth);// width of icon + 8px padding
+                }
+                dayRangeElement.attr("transform", "translate(" + (dayRangeLeft) + ",0)");
             }
-            dayRangeElement.attr("transform", "translate(" + (dayRangeLeft) + ",0)");
 
             this.bottomContainer.attr("transform", "translate(5," + ((chartHeight * 2) + chartSpaceBetween + chartTitleElementHeight) + ")")
             this.bottomContainer.classed("invisible", false);
