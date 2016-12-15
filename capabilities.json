@@ -83,8 +83,8 @@
                     "displayName": "Bottom chart tooltip text",
                     "type": { "text": true }
                 },
-                "errorTooltipText": {
-                    "displayName": "Error tooltip text",
+                "warningTooltipText": {
+                    "displayName": "Warning tooltip text",
                     "type": { "text": true }
                 },
                 "showStaleDataWarning": {

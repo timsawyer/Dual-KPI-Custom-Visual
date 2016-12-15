@@ -46,7 +46,7 @@ module powerbi.extensibility.visual {
         abbreviateValues: boolean;
         topChartToolTipText: string;
         bottomChartToolTipText: string;
-        errorTooltipText: string;
+        warningTooltipText: string;
         showStaleDataWarning: boolean;
         staleDataTooltipText: string;
         staleDataThreshold: number;
@@ -88,7 +88,7 @@ module powerbi.extensibility.visual {
             abbreviateValues: false,
             topChartToolTipText: "",
             bottomChartToolTipText: "",
-            errorTooltipText: "Error",
+            warningTooltipText: "Warning message",
             showStaleDataWarning: true,
             staleDataTooltipText: "",
             staleDataThreshold: 2,
@@ -115,7 +115,7 @@ module powerbi.extensibility.visual {
             abbreviateValues:       { objectName: "dualKpiProperties", propertyName: "abbreviateValues" },
             topChartToolTipText:    { objectName: "dualKpiProperties", propertyName: "topChartToolTipText" },
             bottomChartToolTipText: { objectName: "dualKpiProperties", propertyName: "bottomChartToolTipText" },
-            errorTooltipText:       { objectName: "dualKpiProperties", propertyName: "errorTooltipText" },
+            warningTooltipText:       { objectName: "dualKpiProperties", propertyName: "warningTooltipText" },
             showStaleDataWarning:   { objectName: "dualKpiProperties", propertyName: "showStaleDataWarning" },
             staleDataTooltipText:   { objectName: "dualKpiProperties", propertyName: "staleDataTooltipText" },
             staleDataThreshold:     { objectName: "dualKpiProperties", propertyName: "staleDataThreshold" },
@@ -262,7 +262,7 @@ module powerbi.extensibility.visual {
                             abbreviateValues:       DualKpi.getAbbreviateValues(this.dataView),
                             topChartToolTipText:    DualKpi.getTopChartToolTipText(this.dataView),
                             bottomChartToolTipText: DualKpi.getBottomChartToolTipText(this.dataView),
-                            errorTooltipText:       DualKpi.getErrorTooltipText(this.dataView),
+                            warningTooltipText:     DualKpi.getWarningTooltipText(this.dataView),
                             showStaleDataWarning:   DualKpi.getShowStaleDataWarning(this.dataView),
                             staleDataTooltipText:   DualKpi.getStaleDataTooltipText(this.dataView),
                             staleDataThreshold:     DualKpi.getStaleDataThreshold(this.dataView),
@@ -349,8 +349,8 @@ module powerbi.extensibility.visual {
             return dataView && dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.bottomChartToolTipText, DualKpi.defaultValues.bottomChartToolTipText);
         }
 
-        private static getErrorTooltipText(dataView: DataView): string {
-            return dataView && dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.errorTooltipText, DualKpi.defaultValues.errorTooltipText);
+        private static getWarningTooltipText(dataView: DataView): string {
+            return dataView && dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.warningTooltipText, DualKpi.defaultValues.warningTooltipText);
         }
 
         private static getShowStaleDataWarning(dataView: DataView): boolean {
@@ -517,7 +517,7 @@ module powerbi.extensibility.visual {
             data.abbreviateValues = DualKpi.getAbbreviateValues(dataView);
             data.topChartToolTipText = DualKpi.getTopChartToolTipText(dataView);
             data.bottomChartToolTipText = DualKpi.getBottomChartToolTipText(dataView);
-            data.errorTooltipText = DualKpi.getErrorTooltipText(dataView);
+            data.warningTooltipText = DualKpi.getWarningTooltipText(dataView);
             data.showStaleDataWarning = DualKpi.getShowStaleDataWarning(dataView);
             data.staleDataTooltipText = DualKpi.getStaleDataTooltipText(dataView);
             data.staleDataThreshold = DualKpi.getStaleDataThreshold(dataView);
@@ -742,12 +742,12 @@ module powerbi.extensibility.visual {
                     .attr("transform", iconScaleTransform)
                     .classed(this.sizeCssClass, true)
                     .append("title")
-                            .text(this.data.errorTooltipText);
+                            .text(this.data.warningTooltipText);
 
                 // move title over to account for icon
                 chartTitleElement.attr("transform", "translate(" + (iconWidth + 6) + ",0)");
 
-                warningGroup.on("touchstart", () => this.showMobileTooltip(this.data.errorTooltipText));
+                warningGroup.on("touchstart", () => this.showMobileTooltip(this.data.warningTooltipText));
             }
 
             // add info icon
