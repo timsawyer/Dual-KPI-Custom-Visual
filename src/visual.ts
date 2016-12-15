@@ -809,8 +809,8 @@ module powerbi.extensibility.visual {
 
             let calcWidth = width - margin.right - margin.left,
                 calcHeight = height - margin.top - margin.bottom,
-                minValue = d3.min(chartData, (d) => d.value),
-                maxValue = d3.max(chartData, (d) => d.value);
+                minValue = d3.min(chartData, (d) => d.value) || 0,
+                maxValue = d3.max(chartData, (d) => d.value) || 0;
 
             let axisMinValue = axisConfig.min !== null ? axisConfig.min : minValue;
             let axisMaxValue = axisConfig.max !== null ? axisConfig.max : maxValue;
@@ -842,9 +842,9 @@ module powerbi.extensibility.visual {
 
             if (chartType === "area"){
                 seriesRenderer = d3.svg.area()
-                    .x((d: any) => xScale(d.date))
+                    .x((d: any) => xScale(d.date || new Date()))
                     .y0(calcHeight)
-                    .y1((d: any) => yScale(d.value));
+                    .y1((d: any) => yScale(d.value || 0));
 
                 fill = this.data.dataColor;
                 stroke = "none";
@@ -852,8 +852,8 @@ module powerbi.extensibility.visual {
             }
             else {
                 seriesRenderer = d3.svg.line()
-                    .x((d: any) => xScale(d.date))
-                    .y((d: any) => yScale(d.value));
+                    .x((d: any) => xScale(d.date || new Date()))
+                    .y((d: any) => yScale(d.value || 0));
 
                 fill = "none";
                 stroke = this.data.dataColor;
@@ -897,8 +897,7 @@ module powerbi.extensibility.visual {
             let chartLeft = margin.left;
             let hoverDataContainer = this.createHoverDataContainer(chartBottom, chartLeft, calcWidth);
 
-            let mousemove = (e: any) => {
-                console.log(e.type);
+            let onMousemove = (e: any) => {
                 let leftPosition = e.clientX - margin.left;
                 let topPosition = e.clientY;
 
@@ -925,9 +924,9 @@ module powerbi.extensibility.visual {
                 }
             };
 
-            this.target.addEventListener("mousemove", mousemove);
-            this.target.addEventListener("touchmove", mousemove);
-            this.target.addEventListener("touchstart", mousemove);
+            this.target.addEventListener("mousemove", onMousemove);
+            this.target.addEventListener("touchmove", onMousemove);
+            this.target.addEventListener("touchstart", onMousemove);
 
             let mouseout = (e: MouseEvent) => {
                 hoverLine.classed("hidden", true);
