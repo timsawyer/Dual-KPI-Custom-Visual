@@ -692,6 +692,9 @@ module powerbi.extensibility.visual {
             hoverDataContainer.select(".hover-text.percent")
                 .datum(dataPoint)
                 .text((d: IDualKpiDataPoint) => {
+                    if (valueAsPercent) {
+                        return this.percentFormatter((latestValue - d.value) / 100) + " since";
+                    }
                     return this.getPercentChange(d.value, latestValue) + " since";
                 });
 
