@@ -1,7 +1,9 @@
 # Dual KPI Custom Visual
 
 ## Description
-A Power BI Custom Visual for displaying and comparing two KPI's. This visual support interactions that will display the percent change in values from any point along the x-axis. The interactions and tooltips of the visual support mobile devices. 
+A Power BI Custom Visual for displaying and comparing two KPI's. This visual supports interactions for displaying the percent change in value from any point along the x-axis. The interactions and tooltips of the visual support mobile devices. 
+
+![Image of Visual](https://github.com/tisawyer/Dual-KPI-Custom-Visual/raw/master/assets/screenshot.png)
 
 ## Usage
 To use download the .pbiviz file from [here](https://github.com/tisawyer/Dual-KPI-Custom-Visual/raw/master/dist/dualKpi.pbiviz), and import into a Power BI Report.
