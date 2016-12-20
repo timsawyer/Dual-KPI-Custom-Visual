@@ -176,6 +176,7 @@ module powerbi.extensibility.visual {
         private chartLeftMargin = 30;
         private touchEventsEnabled: boolean = false;
         private viewport: IViewport;
+        private eventListeners: Array<any> = [];
 
         private static axisNumberFormatter = d3.format(".2s");
 
@@ -193,7 +194,7 @@ module powerbi.extensibility.visual {
         }
 
         private initContainer(): void {
-           let svgRoot = this.svgRoot = d3.select(this.target)
+            let svgRoot = this.svgRoot = d3.select(this.target)
                 .append("svg")
                 .attr("class", "dualKpi");
 
@@ -221,10 +222,26 @@ module powerbi.extensibility.visual {
                 .append("path")
                 .classed("warning-icon", true);
 
-            let warningTitle = bottomContainer
-            warningTitle
-                    .append("title")
-                    .classed("warning-title", true);
+            let warningTitle = warningIcon
+                .append("title")
+                .classed("warning-title", true);
+
+            let infoGroup = bottomContainer
+                .append("g")
+                .classed("info-group", true);
+
+            let infoIcon = infoGroup
+                .append("path")
+                .classed("info-icon", true);
+
+            let infoTitle = infoIcon
+                .append("title")
+                .classed("info-title", true);
+
+            let dateRangeText = this.bottomContainer
+                .append("text")
+                .classed("date-range-text", true)
+                .attr("text-anchor", "end");
 
             return bottomContainer;
         }
@@ -238,12 +255,8 @@ module powerbi.extensibility.visual {
                 .append("path")
                 .attr("class", "area");
 
-            let zeroAxis = chartGroup
-                .append("path")
-                .attr("class", "zero-axis");
-
             let yAxis = chartGroup
-                .append("d")
+                .append("g")
                 .attr("class", "axis");
 
             let hoverLine = chartGroup
@@ -253,7 +266,11 @@ module powerbi.extensibility.visual {
             let hoverDataContainer: d3.Selection<SVGElement> = this.createHoverDataContainer(chartGroup);
             this.createChartOverlay(chartGroup);
 
-            this.initMouseEvents(hoverDataContainer);
+            let zeroAxis = chartGroup
+                .append("path")
+                .attr("class", "zero-axis");
+
+            this.initMouseEvents(hoverDataContainer, hoverLine);
 
             return chartGroup;
         }
@@ -265,32 +282,49 @@ module powerbi.extensibility.visual {
 
             chartOverlayTextGroup
                 .append("text")
-                .classed("title", true);
+                .classed("data-title", true);
 
             chartOverlayTextGroup
                 .append("text")
-                .classed("data", true);
+                .classed("data-value", true);
 
             chartOverlayTextGroup
                 .append("rect");
         }
 
-        private initMouseEvents(hoverDataContainer: d3.Selection<SVGElement>): void {
+        private initMouseEvents(hoverDataContainer: d3.Selection<SVGElement>, hoverLine: d3.Selection<SVGElement>): void {
+            let target = this.target;
+
             let mouseout = (e: MouseEvent) => {
-                this.hideHoverData(hoverDataContainer);
+                this.hideHoverData(hoverDataContainer, hoverLine);
             };
 
-            this.target.addEventListener("mouseout", mouseout, true);
-            this.target.addEventListener("touchleave", mouseout, true);
+            target.addEventListener("mouseout", mouseout, true);
+            target.addEventListener("touchleave", mouseout, true);
+
+            this.addClearEvents(() => {
+                target.removeEventListener("mouseout", mouseout);
+                target.removeEventListener("touchleave", mouseout);
+            });
         }
 
         private clear() {
-            this.svgRoot.selectAll("*").remove();
+            this.svgRoot
+                .classed("hidden", true);
+        }
+
+        private clearEvents() {
+            this.eventListeners.map((event: any) => {
+                event.call();
+            });
+        }
+
+        private addClearEvents(func: any) {
+            this.eventListeners.push(func);
         }
 
         public update(options: VisualUpdateOptions) {
-            var t0 = performance.now();
-
+            this.clearEvents();
             let dataView: DataView = this.dataView = options.dataViews[0];
 
             if (!dataView ||
@@ -300,6 +334,9 @@ module powerbi.extensibility.visual {
                 this.clear();
                 return;
             }
+
+            this.svgRoot
+                .classed("hidden", false);
 
             let data: IDualKpiData = this.data = DualKpi.converter(this.dataView);
 
@@ -385,8 +422,6 @@ module powerbi.extensibility.visual {
             }
 
             this.drawBottomContainer(chartWidth, chartHeight, chartTitleSpace, chartSpaceBetween, iconOffset);
-
-            console.log("performance: ", (performance.now() - t0));
         }
 
         private updateViewport(viewport: IViewport): void {
@@ -568,7 +603,7 @@ module powerbi.extensibility.visual {
             return dataView && dataView.metadata && DualKpi.getValue(dataView.metadata.objects, DualKpi.properties.bottomChartType, DualKpi.defaultValues.bottomChartType);
         }
 
-        private getDaysBetween(date1: Date, date2: Date): number {
+        private static getDaysBetween(date1: Date, date2: Date): number {
             let oneDay = 24 * 60 * 60 * 1000; // hours*minutes*seconds*milliseconds
             let dayRange = Math.round(Math.abs(date1.getTime() - date2.getTime()) / oneDay);
             return dayRange;
@@ -772,12 +807,12 @@ module powerbi.extensibility.visual {
                 .attr("class", "hover-text date")
                 .text("0");
 
-           hoverDataContainer.append("text")
+            hoverDataContainer.append("text")
                 .attr("class", "hover-text value")
                 .attr("text-anchor", "middle")
                 .text("0");
 
-           hoverDataContainer.append("text")
+            hoverDataContainer.append("text")
                 .attr("class", "hover-text percent")
                 .attr("text-anchor", "end")
                 .text("0");
@@ -786,17 +821,17 @@ module powerbi.extensibility.visual {
         }
 
         private updateHoverDataContainer(chartGroup: d3.Selection<SVGElement>, chartBottom: number, chartLeft: number, chartWidth: number): d3.Selection<SVGElement> {
-             let hoverDataContainer = chartGroup.select(".hover-data-container");
+            let hoverDataContainer = chartGroup.select(".hover-data-container");
 
-             let hoverDate: d3.Selection<SVGElement> = hoverDataContainer.select(".date");
-             hoverDate
+            let hoverDate: d3.Selection<SVGElement> = hoverDataContainer.select(".date");
+            hoverDate
                 .attr("class", "hover-text date")
                 .classed(this.sizeCssClass, true)
                 .attr("fill", this.data.textColor)
                 .text("0");
 
-             let hoverValue: d3.Selection<SVGElement> = hoverDataContainer.select(".value");
-             hoverValue
+            let hoverValue: d3.Selection<SVGElement> = hoverDataContainer.select(".value");
+            hoverValue
                 .attr("class", "hover-text value")
                 .classed(this.sizeCssClass, true)
                 .attr("transform", "translate(" + (chartWidth / 2) + ",0)")
@@ -848,11 +883,10 @@ module powerbi.extensibility.visual {
             hoverDataContainer.classed("invisible", false);
         }
 
-        private hideHoverData(hoverDataContainer: d3.Selection<SVGElement>) {
+        private hideHoverData(hoverDataContainer: d3.Selection<SVGElement>, hoverLine?: d3.Selection<SVGElement>) {
             hoverDataContainer.classed("invisible", true);
-
-            //this.bottomContainer.classed("hidden", false);
-            //this.hoverLine.classed("hidden", true);
+            this.bottomContainer.classed("hidden", false);
+            hoverLine && hoverLine.classed("hidden", true);
         }
 
         /*
@@ -908,62 +942,24 @@ module powerbi.extensibility.visual {
 
             // add warning icon
             if (this.data.warningState < 0) {
-                let warningGroup = this.bottomContainer.select("g.warning-group");
-                warningGroup
-                    .attr("transform", "translate(0," + (iconY) + ")");
-
-                let warningIcon = this.bottomContainer.select("path.warning-icon");
-                warningIcon
-                    .attr({
-                        "d": "M24,24H8l8-16L24,24z M9.7,23h12.6L16,10.4L9.7,23z M16.5,19.8h-1v-5.4h1V19.8z M16.5,20.8v1.1h-1v-1.1H16.5z",
-                        "fill": "#E81123",
-                        "stroke": "transparent",
-                        "stroke-width": "5",
-                        "class": "warning-icon",
-                        "transform": iconScaleTransform
-                    })
-                    .classed(this.sizeCssClass, true);
-
-                let warningTitle = this.bottomContainer.select(".warning-title");
-                warningTitle
-                    .text(this.data.warningTooltipText);
-
-                // move title over to account for icon
-                chartTitleElement.attr("transform", "translate(" + (iconWidth + 6) + ",0)");
-
-                warningGroup.on("touchstart", () => this.showMobileTooltip(this.data.warningTooltipText));
+                this.createWarningMessage(chartTitleElement, iconY, iconScaleTransform, iconWidth);
             }
 
             // add info icon
             if (this.data.topValues.length > 0) {
                 let today = new Date();
-                let dataDaysOld = this.getDaysBetween(this.data.topValues[this.data.topValues.length - 1].date, today);
+                let dataDaysOld = DualKpi.getDaysBetween(this.data.topValues[this.data.topValues.length - 1].date, today);
                 if (dataDaysOld >= this.data.staleDataThreshold && this.data.showStaleDataWarning) {
                     infoIconShowing = true;
-                    let infoMessage = "Data is " + dataDaysOld + " days old. " + this.data.staleDataTooltipText;
-                    let infoGroup = this.bottomContainer.append("g")
-                        .attr("transform", "translate(" + (chartWidth - iconWidth - 8) + "," + (iconY) + ")");
-
-                    infoGroup.append("path")
-                        .attr("d", "M24,16c0,1.4-0.4,2.8-1,4c-0.7,1.2-1.7,2.2-2.9,2.9c-1.2,0.7-2.5,1-4,1s-2.8-0.4-4-1c-1.2-0.7-2.2-1.7-2.9-2.9 C8.4,18.8,8,17.4,8,16c0-1.5,0.4-2.8,1.1-4c0.8-1.2,1.7-2.2,2.9-2.9S14.6,8,16,8s2.8,0.3,4,1.1c1.2,0.7,2.2,1.7,2.9,2.9 C23.6,13.2,24,14.5,24,16z M12.6,22c1.1,0.6,2.2 0.9,3.4,0.9s2.4-0.3,3.5-0.9c1-0.6,1.9-1.5,2.5-2.6c0.6-1,1-2.2,1-3.4 s-0.3-2.4-1-3.5s-1.5-1.9-2.5-2.5c-1.1-0.6-2.2-1-3.5-1s-2.4,0.4-3.4,1c-1.1,0.6-1.9,1.4-2.6,2.5c-0.6,1.1-0.9,2.2-0.9,3.5 c0,1.2,0.3,2.4,0.9,3.4C10.6,20.5,11.4,21.4,12.6,22z M16.5,17.6h-1v-5.4h1V17.6z M16.5 19.7h-1v-1.1h1V19.7z")
-                        .attr("fill", "#3599B8")
-                        .attr("stroke", "transparent")
-                        .attr("stroke-width", "5") // fills in path so that title tooltip will show
-                        .attr("class", "info-icon")
-                        .attr("transform", iconScaleTransform)
-                        .classed(this.sizeCssClass, true)
-                        .append("title")
-                        .text(infoMessage);
-
-                    infoGroup.on("touchstart", () => this.showMobileTooltip(infoMessage));
+                    this.createInfoMessage(iconY, iconScaleTransform, iconWidth, chartWidth, dataDaysOld);
                 }
 
                 // add day range text
-                let dayRange = this.getDaysBetween(this.data.topValues[0].date, this.data.topValues[this.data.topValues.length - 1].date);
-                let dayRangeElement = this.bottomContainer.append("text")
+                let dayRange = DualKpi.getDaysBetween(this.data.topValues[0].date, this.data.topValues[this.data.topValues.length - 1].date);
+                let dayRangeElement = this.bottomContainer.select("text.date-range-text")
+                dayRangeElement
                     .attr("class", "date-range-text")
                     .classed(this.sizeCssClass, true)
-                    .attr("text-anchor", "end")
                     .text("last " + dayRange + " days");
 
                 let dayRangeElementWidth = DualKpi.getSVGRect(dayRangeElement).width;
@@ -978,7 +974,61 @@ module powerbi.extensibility.visual {
             this.bottomContainer.classed("invisible", false);
         }
 
+        private createWarningMessage(chartTitleElement, iconY: number, iconScaleTransform: any, iconWidth: number) {
+            let warningGroup = this.bottomContainer.select("g.warning-group");
+            warningGroup
+                .attr("transform", "translate(0," + (iconY) + ")");
+
+            let warningIcon = warningGroup.select("path.warning-icon");
+            warningIcon
+                .attr({
+                    "d": "M24,24H8l8-16L24,24z M9.7,23h12.6L16,10.4L9.7,23z M16.5,19.8h-1v-5.4h1V19.8z M16.5,20.8v1.1h-1v-1.1H16.5z",
+                    "fill": "#E81123",
+                    "stroke": "transparent",
+                    "stroke-width": "5",
+                    "class": "warning-icon",
+                    "transform": iconScaleTransform
+                })
+                .classed(this.sizeCssClass, true);
+
+            let warningTitle = warningIcon.select(".warning-title");
+            warningTitle
+                .text(this.data.warningTooltipText);
+
+            // move title over to account for icon
+            chartTitleElement.attr("transform", "translate(" + (iconWidth + 6) + ",0)");
+
+            warningGroup.on("touchstart", () => this.showMobileTooltip(this.data.warningTooltipText));
+        }
+
+        private createInfoMessage(iconY: number, iconScaleTransform: any, iconWidth: number, chartWidth: number, dataDaysOld: number) {
+            let infoIconShowing = true;
+            let infoMessage = "Data is " + dataDaysOld + " days old. " + this.data.staleDataTooltipText;
+            let infoGroup = this.bottomContainer.select("g.info-group");
+            infoGroup
+                .attr("transform", "translate(" + (chartWidth - iconWidth - 8) + "," + (iconY) + ")");
+
+            let infoIcon = infoGroup.select("path.info-icon");
+            infoIcon
+                .attr({
+                    "d": "M24,16c0,1.4-0.4,2.8-1,4c-0.7,1.2-1.7,2.2-2.9,2.9c-1.2,0.7-2.5,1-4,1s-2.8-0.4-4-1c-1.2-0.7-2.2-1.7-2.9-2.9 C8.4,18.8,8,17.4,8,16c0-1.5,0.4-2.8,1.1-4c0.8-1.2,1.7-2.2,2.9-2.9S14.6,8,16,8s2.8,0.3,4,1.1c1.2,0.7,2.2,1.7,2.9,2.9 C23.6,13.2,24,14.5,24,16z M12.6,22c1.1,0.6,2.2 0.9,3.4,0.9s2.4-0.3,3.5-0.9c1-0.6,1.9-1.5,2.5-2.6c0.6-1,1-2.2,1-3.4 s-0.3-2.4-1-3.5s-1.5-1.9-2.5-2.5c-1.1-0.6-2.2-1-3.5-1s-2.4,0.4-3.4,1c-1.1,0.6-1.9,1.4-2.6,2.5c-0.6,1.1-0.9,2.2-0.9,3.5 c0,1.2,0.3,2.4,0.9,3.4C10.6,20.5,11.4,21.4,12.6,22z M16.5,17.6h-1v-5.4h1V17.6z M16.5 19.7h-1v-1.1h1V19.7z",
+                    "fill": "#3599B8",
+                    "stroke": "transparent",
+                    "stroke-width": "5", // fills in path so that title tooltip will show
+                    "class": "info-icon",
+                    "transform": iconScaleTransform
+                })
+                .classed(this.sizeCssClass, true);
+
+            let infoTitle = infoIcon.select(".info-title");
+            infoTitle
+                .text(infoMessage);
+
+            infoGroup.on("touchstart", () => this.showMobileTooltip(infoMessage));
+        }
+
         private drawChart(options: IDualKpiOptions) {
+            let target = this.target;
             let chartData: Array<IDualKpiDataPoint> = options.chartData;
             let axisConfig: IAxisConfig = options.axisConfig;
             const latestValue: number = chartData[chartData.length - 1].value;
@@ -1058,15 +1108,17 @@ module powerbi.extensibility.visual {
                 });
 
             let zeroAxis: d3.Selection<SVGElement> = chartGroup.select(".zero-axis");
+            let minChartDataValue = d3.min(chartData, (d: IDualKpiDataPoint) => d.value);
 
             // DRAW line for x axis at zero position
-            if (options.showZeroLine) {
+            if (options.showZeroLine && minChartDataValue < 0) {
                 let axisLine = d3.svg.line()
                     .x((d: any) => xScale(d.date))
                     .y((d: any) => yScale(0));
 
                 zeroAxis
                     .datum(chartData)
+                    .classed("hidden", false)
                     .attr({
                         "d": axisLine as any
                     });
@@ -1075,7 +1127,7 @@ module powerbi.extensibility.visual {
                     .classed("hidden", true);
             }
 
-            let axis: d3.Selection<SVGElement> = chartGroup.select(".zero-axis");
+            let axis: d3.Selection<SVGElement> = chartGroup.select(".axis");
             axis
                 .attr("class", "axis")
                 .classed(this.sizeCssClass, true)
@@ -1091,7 +1143,7 @@ module powerbi.extensibility.visual {
                     "fill": "#777"
                 });
 
-            let chartBottom = options.top + margin.top + calcHeight;
+            let chartBottom = margin.top + calcHeight;
             let chartLeft = margin.left;
 
             let hoverDataContainer: d3.Selection<SVGElement> = this.updateHoverDataContainer(options.element, chartBottom, chartLeft, calcWidth);
@@ -1118,13 +1170,19 @@ module powerbi.extensibility.visual {
                     }
                 }
                 else {
-                    this.hideHoverData(hoverDataContainer);
+                    this.hideHoverData(hoverDataContainer, hoverLine);
                 }
             };
 
-            this.target.addEventListener("mousemove", onMousemove);
-            this.target.addEventListener("touchmove", onMousemove);
-            this.target.addEventListener("touchstart", onMousemove);
+            target.addEventListener("mousemove", onMousemove);
+            target.addEventListener("touchmove", onMousemove);
+            target.addEventListener("touchstart", onMousemove);
+
+            this.addClearEvents(() => {
+                target.removeEventListener("mousemove", onMousemove);
+                target.removeEventListener("touchmove", onMousemove);
+                target.removeEventListener("touchstart", onMousemove);
+            });
 
             this.addOverlayText(options, latestValue, calcHeight, calcWidth);
         }
@@ -1143,7 +1201,7 @@ module powerbi.extensibility.visual {
             }
 
             let chartOverlayTextGroup: d3.Selection<SVGElement> = chartGroup.select(".group");
-            let dataTitle: d3.Selection<SVGElement> = chartOverlayTextGroup.select("text.title");
+            let dataTitle: d3.Selection<SVGElement> = chartOverlayTextGroup.select("text.data-title");
             dataTitle
                 .classed("invisible", true)
                 .attr("class", "data-title")
@@ -1151,7 +1209,7 @@ module powerbi.extensibility.visual {
                 .attr("fill", this.data.textColor)
                 .text(options.chartTitle + " (" + percentChange + ")");
 
-            let dataValue: d3.Selection<SVGElement> = chartOverlayTextGroup.select("text.data");
+            let dataValue: d3.Selection<SVGElement> = chartOverlayTextGroup.select("text.data-value");
             dataValue
                 .classed("invisible", true)
                 .attr("class", "data-value")
@@ -1164,7 +1222,6 @@ module powerbi.extensibility.visual {
 
             let dataTitleHeight = dataTitleRect.height;
             let dataValueHeight = dataValueRect.height;
-            let verticalCentering = (calcHeight / 2) - dataTitleHeight; // bump slightly above perfectly vertically centered on chart
 
             // calc horizontal centering
             let dataTitleWidth = dataTitleRect.width;
@@ -1174,10 +1231,13 @@ module powerbi.extensibility.visual {
 
             // apply centerings, then unhide text
             dataTitle.attr("transform", `translate(${dataTitleHorzCentering}, 0)`);
-            dataValue.attr("transform", `translate(${dataTitleHorzCentering}, ${dataValueHeight * 10 / 11})`);
+            dataValue.attr("transform", `translate(${dataValueHorzCentering}, ${dataValueHeight * 10 / 11})`);
+
+            let verticalCentering = (calcHeight / 2) - dataTitleHeight; // bump slightly above perfectly vertically centered on chart
+            let horizontalCentering = 0;
 
             chartOverlayTextGroup
-                .attr("transform", `translate(0, ${verticalCentering})`);
+                .attr("transform", `translate(${horizontalCentering}, ${verticalCentering})`);
             dataTitle.classed("invisible", false);
             dataValue.classed("invisible", false);
 
