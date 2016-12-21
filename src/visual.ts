@@ -941,7 +941,7 @@ module powerbi.extensibility.visual {
                 .attr("transform", "translate(" + (chartWidth) + ",0)");
 
             hoverDataContainer.container
-                .attr("transform", "translate(" + chartLeft + "," + (chartBottom + this.titleSize - 2) + ")");
+                .attr("transform", "translate(" + 0 + "," + (chartBottom + this.titleSize - 2) + ")");
         }
 
         private showHoverData(hoverDataContainer: IHoverDataContainer, dataPoint: IDualKpiDataPoint, latestValue: number, valueAsPercent: boolean, abbreviateValue: boolean) {
@@ -1041,6 +1041,8 @@ module powerbi.extensibility.visual {
                 if (dataDaysOld >= this.data.staleDataThreshold && this.data.showStaleDataWarning) {
                     infoIconShowing = true;
                     this.createInfoMessage(iconY, iconScaleTransform, iconWidth, chartWidth, dataDaysOld);
+                } else {
+                    this.hideInfoMessage();
                 }
 
                 // add day range text
@@ -1090,7 +1092,6 @@ module powerbi.extensibility.visual {
         }
 
         private createInfoMessage(iconY: number, iconScaleTransform: any, iconWidth: number, chartWidth: number, dataDaysOld: number) {
-            let infoIconShowing = true;
             let infoMessage = "Data is " + dataDaysOld + " days old. " + this.data.staleDataTooltipText;
             let info = this.bottomContainer.info;
             info.group
@@ -1106,13 +1107,19 @@ module powerbi.extensibility.visual {
                     "class": "info-icon",
                     "transform": iconScaleTransform
                 })
-                .classed(this.sizeCssClass, true);
+                .classed(this.sizeCssClass, true)
+                .classed("hidden", false);
 
             let infoTitle = info.title;
             infoTitle
                 .text(infoMessage);
 
             info.group.on("touchstart", () => this.showMobileTooltip(infoMessage));
+        }
+
+        private hideInfoMessage() {
+            let info = this.bottomContainer.info;
+            info.icon.classed("hidden", true);
         }
 
         private drawChart(options: IDualKpiOptions) {
