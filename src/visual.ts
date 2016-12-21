@@ -84,7 +84,7 @@ module powerbi.extensibility.visual {
     export type DualKpiSizeClass = "extra-small" | "small" | "medium" | "large";
 
     export interface IDualKpiOptions {
-        element: d3.Selection<SVGElement>;
+        element: IChartGroup;
         abbreviateValue: boolean;
         axisConfig: IAxisConfig;
         chartData: Array<IDualKpiDataPoint>,
@@ -97,6 +97,45 @@ module powerbi.extensibility.visual {
         top: number;
         valueAsPercent: boolean;
         width: number;
+    }
+
+    export interface IGroup {
+        group: d3.Selection<SVGElement>;
+        icon: d3.Selection<SVGElement>;
+        title: d3.Selection<SVGElement>;
+    }
+
+    export interface IBottomContainer {
+        bottomContainer: d3.Selection<SVGElement>;
+        chartTitleElement: d3.Selection<SVGElement>;
+        warning: IGroup,
+        info: IGroup,
+        dateRangeText: d3.Selection<SVGElement>;
+    }
+
+    export interface IHoverDataContainer {
+        container: d3.Selection<SVGElement>;
+        date: d3.Selection<SVGElement>;
+        text: d3.Selection<SVGElement>;
+        percent: d3.Selection<SVGElement>;
+    }
+
+    export interface IChartOverlay {
+        group: d3.Selection<SVGElement>;
+        title: d3.Selection<SVGElement>;
+        text: d3.Selection<SVGElement>;
+        rect: d3.Selection<SVGElement>;
+        rectTitle: d3.Selection<SVGElement>;
+    }
+
+    export interface IChartGroup {
+        group: d3.Selection<SVGElement>;
+        area: d3.Selection<SVGElement>;
+        yAxis: d3.Selection<SVGElement>;
+        hoverLine: d3.Selection<SVGElement>;
+        hoverDataContainer: IHoverDataContainer,
+        chartOverlay: IChartOverlay,
+        zeroAxis: d3.Selection<SVGElement>;
     }
 
     export class DualKpi implements IVisual {
@@ -163,10 +202,10 @@ module powerbi.extensibility.visual {
 
         private svgRoot: d3.Selection<SVGElement>;
 
-        private chartGroupTop: d3.Selection<SVGElement>;
-        private chartGroupBottom: d3.Selection<SVGElement>;
+        private chartGroupTop: IChartGroup;
+        private chartGroupBottom: IChartGroup;
 
-        private bottomContainer: d3.Selection<SVGElement>;
+        private bottomContainer: IBottomContainer;
         private mobileTooltip: d3.Selection<SVGElement>;
         private valueFormatter: Function;
         private commaNumberFormatter: Function;
@@ -179,6 +218,22 @@ module powerbi.extensibility.visual {
         private eventListeners: Array<any> = [];
 
         private static axisNumberFormatter = d3.format(".2s");
+
+        private static DefaultTitleSizes = {
+            "extra-small": 10,
+            "small": 12,
+            "medium": 14,
+            "large": 16
+        }
+
+        private static DefaultValueSizes = {
+            "extra-small": 14,
+            "small": 26,
+            "medium": 32,
+            "large": 40
+        }
+
+        private titleSize: number = 0;
 
         constructor(options: VisualConstructorOptions) {
             this.target = options.element;
@@ -204,8 +259,8 @@ module powerbi.extensibility.visual {
             this.bottomContainer = this.createBottomContainer(svgRoot);
         }
 
-        private createBottomContainer(svgRoot: d3.Selection<SVGElement>): d3.Selection<SVGElement> {
-            let bottomContainer = this.bottomContainer = svgRoot
+        private createBottomContainer(svgRoot: d3.Selection<SVGElement>): IBottomContainer {
+            let bottomContainer = svgRoot
                 .append("g")
                 .attr("class", "bottom-title-container")
                 .classed("invisible", true);
@@ -238,15 +293,29 @@ module powerbi.extensibility.visual {
                 .append("title")
                 .classed("info-title", true);
 
-            let dateRangeText = this.bottomContainer
+            let dateRangeText = bottomContainer
                 .append("text")
                 .classed("date-range-text", true)
                 .attr("text-anchor", "end");
 
-            return bottomContainer;
+            return {
+                bottomContainer: bottomContainer,
+                chartTitleElement: chartTitleElement,
+                warning: {
+                    group: warningGroup,
+                    icon: warningIcon,
+                    title: warningTitle
+                },
+                info: {
+                    group: infoGroup,
+                    icon: infoIcon,
+                    title: infoTitle
+                },
+                dateRangeText: dateRangeText
+            }
         }
 
-        private createChartGroup(svgRoot: d3.Selection<SVGElement>): d3.Selection<SVGElement> {
+        private createChartGroup(svgRoot: d3.Selection<SVGElement>): IChartGroup {
             let chartGroup: d3.Selection<SVGElement> = svgRoot
                 .append("g")
                 .attr("class", "chartGroup")
@@ -263,8 +332,8 @@ module powerbi.extensibility.visual {
                 .append("rect")
                 .attr("class", "hoverLine");
 
-            let hoverDataContainer: d3.Selection<SVGElement> = this.createHoverDataContainer(chartGroup);
-            this.createChartOverlay(chartGroup);
+            let hoverDataContainer: IHoverDataContainer = this.createHoverDataContainer(chartGroup);
+            let chartOverlay: IChartOverlay = this.createChartOverlay(chartGroup);
 
             let zeroAxis = chartGroup
                 .append("path")
@@ -272,27 +341,52 @@ module powerbi.extensibility.visual {
 
             this.initMouseEvents(hoverDataContainer, hoverLine);
 
-            return chartGroup;
+            return {
+                group: chartGroup,
+                area: chartArea,
+                yAxis: yAxis,
+                hoverLine,
+                hoverDataContainer: hoverDataContainer,
+                chartOverlay: chartOverlay,
+                zeroAxis: zeroAxis
+            }
         }
 
-        private createChartOverlay(chartGroup: d3.Selection<SVGElement>) {
+        private createChartOverlay(chartGroup: d3.Selection<SVGElement>): IChartOverlay {
             let chartOverlayTextGroup = chartGroup
                 .append("g")
                 .classed("group", true);
 
-            chartOverlayTextGroup
+            let title = chartOverlayTextGroup
                 .append("text")
-                .classed("data-title", true);
+                .classed("data-title", true)
+                .attr({
+                    "text-anchor": "middle"
+                });
 
-            chartOverlayTextGroup
+            let text = chartOverlayTextGroup
                 .append("text")
-                .classed("data-value", true);
+                .classed("data-value", true)
+                .attr({
+                    "text-anchor": "middle"
+                });
 
-            chartOverlayTextGroup
+            let chartOverlayRect = chartOverlayTextGroup
                 .append("rect");
+
+            let rectTitle = chartOverlayTextGroup
+                .append("title");
+
+            return {
+                group: chartOverlayTextGroup,
+                title: title,
+                text: text,
+                rect: chartOverlayRect,
+                rectTitle: rectTitle
+            }
         }
 
-        private initMouseEvents(hoverDataContainer: d3.Selection<SVGElement>, hoverLine: d3.Selection<SVGElement>): void {
+        private initMouseEvents(hoverDataContainer: IHoverDataContainer, hoverLine: d3.Selection<SVGElement>): void {
             let target = this.target;
 
             let mouseout = (e: MouseEvent) => {
@@ -309,8 +403,6 @@ module powerbi.extensibility.visual {
         }
 
         private clear() {
-            this.svgRoot
-                .classed("hidden", true);
         }
 
         private clearEvents() {
@@ -334,9 +426,6 @@ module powerbi.extensibility.visual {
                 this.clear();
                 return;
             }
-
-            this.svgRoot
-                .classed("hidden", false);
 
             let data: IDualKpiData = this.data = DualKpi.converter(this.dataView);
 
@@ -370,6 +459,8 @@ module powerbi.extensibility.visual {
                 chartSpaceBetween = 6;
                 chartTitleSpace = 18;
             }
+
+            this.titleSize = DualKpi.DefaultTitleSizes[this.sizeCssClass];
 
             this.updateViewport({
                 width: availableWidth,
@@ -798,39 +889,42 @@ module powerbi.extensibility.visual {
             return data;
         }
 
-        private createHoverDataContainer(chartGroup: d3.Selection<SVGElement>): d3.Selection<SVGElement> {
+        private createHoverDataContainer(chartGroup: d3.Selection<SVGElement>): IHoverDataContainer {
             let hoverDataContainer = chartGroup.append("g")
                 .attr("class", "hover-data-container")
                 .classed("invisible", true);
 
-            hoverDataContainer.append("text")
+            let date = hoverDataContainer.append("text")
                 .attr("class", "hover-text date")
                 .text("0");
 
-            hoverDataContainer.append("text")
+            let text = hoverDataContainer.append("text")
                 .attr("class", "hover-text value")
                 .attr("text-anchor", "middle")
                 .text("0");
 
-            hoverDataContainer.append("text")
+            let percent = hoverDataContainer.append("text")
                 .attr("class", "hover-text percent")
                 .attr("text-anchor", "end")
                 .text("0");
 
-            return hoverDataContainer;
+            return {
+                container: hoverDataContainer,
+                date: date,
+                text: text,
+                percent: percent
+            };
         }
 
-        private updateHoverDataContainer(chartGroup: d3.Selection<SVGElement>, chartBottom: number, chartLeft: number, chartWidth: number): d3.Selection<SVGElement> {
-            let hoverDataContainer = chartGroup.select(".hover-data-container");
-
-            let hoverDate: d3.Selection<SVGElement> = hoverDataContainer.select(".date");
+        private updateHoverDataContainer(hoverDataContainer: IHoverDataContainer, chartBottom: number, chartLeft: number, chartWidth: number): void {
+            let hoverDate: d3.Selection<SVGElement> = hoverDataContainer.date;
             hoverDate
                 .attr("class", "hover-text date")
                 .classed(this.sizeCssClass, true)
                 .attr("fill", this.data.textColor)
                 .text("0");
 
-            let hoverValue: d3.Selection<SVGElement> = hoverDataContainer.select(".value");
+            let hoverValue: d3.Selection<SVGElement> = hoverDataContainer.text;
             hoverValue
                 .attr("class", "hover-text value")
                 .classed(this.sizeCssClass, true)
@@ -838,7 +932,7 @@ module powerbi.extensibility.visual {
                 .attr("fill", this.data.textColor)
                 .text("0");
 
-            let hoverPercent: d3.Selection<SVGElement> = hoverDataContainer.select(".percent");
+            let hoverPercent: d3.Selection<SVGElement> = hoverDataContainer.percent;
             hoverPercent
                 .attr("class", "hover-text percent")
                 .classed(this.sizeCssClass, true)
@@ -846,19 +940,17 @@ module powerbi.extensibility.visual {
                 .attr("fill", this.data.textColor)
                 .attr("transform", "translate(" + (chartWidth) + ",0)");
 
-            let hoverValueHeight = DualKpi.getSVGRect(hoverDate).height;
-            hoverDataContainer.attr("transform", "translate(" + chartLeft + "," + (chartBottom + hoverValueHeight - 2) + ")");
-
-            return hoverDataContainer;
+            hoverDataContainer.container
+                .attr("transform", "translate(" + chartLeft + "," + (chartBottom + this.titleSize - 2) + ")");
         }
 
-        private showHoverData(hoverDataContainer: d3.Selection<SVGElement>, dataPoint: IDualKpiDataPoint, latestValue: number, valueAsPercent: boolean, abbreviateValue: boolean) {
-            let hoverDate: d3.Selection<SVGElement> = hoverDataContainer.select(".date");
+        private showHoverData(hoverDataContainer: IHoverDataContainer, dataPoint: IDualKpiDataPoint, latestValue: number, valueAsPercent: boolean, abbreviateValue: boolean) {
+            let hoverDate: d3.Selection<SVGElement> = hoverDataContainer.date;
             hoverDate
                 .datum(dataPoint)
                 .text((d: IDualKpiDataPoint) => this.timeFormatter(d.date));
 
-            let hoverValue: d3.Selection<SVGElement> = hoverDataContainer.select(".value");
+            let hoverValue: d3.Selection<SVGElement> = hoverDataContainer.text;
             hoverValue
                 .datum(dataPoint)
                 .text((d: IDualKpiDataPoint) => {
@@ -869,7 +961,7 @@ module powerbi.extensibility.visual {
                     return value;
                 });
 
-            let hoverPercent: d3.Selection<SVGElement> = hoverDataContainer.select(".percent");
+            let hoverPercent: d3.Selection<SVGElement> = hoverDataContainer.percent;
             hoverPercent
                 .datum(dataPoint)
                 .text((d: IDualKpiDataPoint) => {
@@ -879,13 +971,13 @@ module powerbi.extensibility.visual {
                     return DualKpi.getPercentChange(d.value, latestValue) + " since";
                 });
 
-            this.bottomContainer.classed("hidden", true);
-            hoverDataContainer.classed("invisible", false);
+            this.bottomContainer.bottomContainer.classed("hidden", true);
+            hoverDataContainer.container.classed("invisible", false);
         }
 
-        private hideHoverData(hoverDataContainer: d3.Selection<SVGElement>, hoverLine?: d3.Selection<SVGElement>) {
-            hoverDataContainer.classed("invisible", true);
-            this.bottomContainer.classed("hidden", false);
+        private hideHoverData(hoverDataContainer: IHoverDataContainer, hoverLine?: d3.Selection<SVGElement>) {
+            hoverDataContainer.container.classed("invisible", true);
+            this.bottomContainer.bottomContainer.classed("hidden", false);
             hoverLine && hoverLine.classed("hidden", true);
         }
 
@@ -923,14 +1015,11 @@ module powerbi.extensibility.visual {
             let warningIconShowing = false;
             let infoIconShowing = false;
 
-            let chartTitleElement = this.bottomContainer.select("text.title")
+            let chartTitleElement = this.bottomContainer.chartTitleElement
                 .attr("class", "title")
                 .classed(this.sizeCssClass, true)
                 .text(this.data.title);
 
-            let chartTitleElementRect = DualKpi.getSVGRect(chartTitleElement);
-            let chartTitleElementWidth = chartTitleElementRect.width;
-            let chartTitleElementHeight = chartTitleElementRect.height;
             let iconWidth = 22;
             let iconScaleTransform = "";
             let iconY = (-chartTitleSpace + (chartTitleSpace / 2) + iconOffset);
@@ -956,13 +1045,12 @@ module powerbi.extensibility.visual {
 
                 // add day range text
                 let dayRange = DualKpi.getDaysBetween(this.data.topValues[0].date, this.data.topValues[this.data.topValues.length - 1].date);
-                let dayRangeElement = this.bottomContainer.select("text.date-range-text")
+                let dayRangeElement = this.bottomContainer.dateRangeText
                 dayRangeElement
                     .attr("class", "date-range-text")
                     .classed(this.sizeCssClass, true)
                     .text("last " + dayRange + " days");
 
-                let dayRangeElementWidth = DualKpi.getSVGRect(dayRangeElement).width;
                 let dayRangeLeft = chartWidth - 8;
                 if (infoIconShowing) {
                     dayRangeLeft -= (iconWidth);// width of icon + 8px padding
@@ -970,16 +1058,16 @@ module powerbi.extensibility.visual {
                 dayRangeElement.attr("transform", "translate(" + (dayRangeLeft) + ",0)");
             }
 
-            this.bottomContainer.attr("transform", "translate(5," + ((chartHeight * 2) + chartSpaceBetween + chartTitleElementHeight) + ")")
-            this.bottomContainer.classed("invisible", false);
+            this.bottomContainer.bottomContainer.attr("transform", "translate(5," + (this.viewport.height - 5) + ")")
+            this.bottomContainer.bottomContainer.classed("invisible", false);
         }
 
         private createWarningMessage(chartTitleElement, iconY: number, iconScaleTransform: any, iconWidth: number) {
-            let warningGroup = this.bottomContainer.select("g.warning-group");
-            warningGroup
+            let warning = this.bottomContainer.warning;
+            warning.group
                 .attr("transform", "translate(0," + (iconY) + ")");
 
-            let warningIcon = warningGroup.select("path.warning-icon");
+            let warningIcon = warning.icon;
             warningIcon
                 .attr({
                     "d": "M24,24H8l8-16L24,24z M9.7,23h12.6L16,10.4L9.7,23z M16.5,19.8h-1v-5.4h1V19.8z M16.5,20.8v1.1h-1v-1.1H16.5z",
@@ -991,24 +1079,24 @@ module powerbi.extensibility.visual {
                 })
                 .classed(this.sizeCssClass, true);
 
-            let warningTitle = warningIcon.select(".warning-title");
+            let warningTitle = warning.title;
             warningTitle
                 .text(this.data.warningTooltipText);
 
             // move title over to account for icon
             chartTitleElement.attr("transform", "translate(" + (iconWidth + 6) + ",0)");
 
-            warningGroup.on("touchstart", () => this.showMobileTooltip(this.data.warningTooltipText));
+            warning.group.on("touchstart", () => this.showMobileTooltip(this.data.warningTooltipText));
         }
 
         private createInfoMessage(iconY: number, iconScaleTransform: any, iconWidth: number, chartWidth: number, dataDaysOld: number) {
             let infoIconShowing = true;
             let infoMessage = "Data is " + dataDaysOld + " days old. " + this.data.staleDataTooltipText;
-            let infoGroup = this.bottomContainer.select("g.info-group");
-            infoGroup
+            let info = this.bottomContainer.info;
+            info.group
                 .attr("transform", "translate(" + (chartWidth - iconWidth - 8) + "," + (iconY) + ")");
 
-            let infoIcon = infoGroup.select("path.info-icon");
+            let infoIcon = info.icon;
             infoIcon
                 .attr({
                     "d": "M24,16c0,1.4-0.4,2.8-1,4c-0.7,1.2-1.7,2.2-2.9,2.9c-1.2,0.7-2.5,1-4,1s-2.8-0.4-4-1c-1.2-0.7-2.2-1.7-2.9-2.9 C8.4,18.8,8,17.4,8,16c0-1.5,0.4-2.8,1.1-4c0.8-1.2,1.7-2.2,2.9-2.9S14.6,8,16,8s2.8,0.3,4,1.1c1.2,0.7,2.2,1.7,2.9,2.9 C23.6,13.2,24,14.5,24,16z M12.6,22c1.1,0.6,2.2 0.9,3.4,0.9s2.4-0.3,3.5-0.9c1-0.6,1.9-1.5,2.5-2.6c0.6-1,1-2.2,1-3.4 s-0.3-2.4-1-3.5s-1.5-1.9-2.5-2.5c-1.1-0.6-2.2-1-3.5-1s-2.4,0.4-3.4,1c-1.1,0.6-1.9,1.4-2.6,2.5c-0.6,1.1-0.9,2.2-0.9,3.5 c0,1.2,0.3,2.4,0.9,3.4C10.6,20.5,11.4,21.4,12.6,22z M16.5,17.6h-1v-5.4h1V17.6z M16.5 19.7h-1v-1.1h1V19.7z",
@@ -1020,11 +1108,11 @@ module powerbi.extensibility.visual {
                 })
                 .classed(this.sizeCssClass, true);
 
-            let infoTitle = infoIcon.select(".info-title");
+            let infoTitle = info.title;
             infoTitle
                 .text(infoMessage);
 
-            infoGroup.on("touchstart", () => this.showMobileTooltip(infoMessage));
+            info.group.on("touchstart", () => this.showMobileTooltip(infoMessage));
         }
 
         private drawChart(options: IDualKpiOptions) {
@@ -1093,10 +1181,11 @@ module powerbi.extensibility.visual {
                 strokeWidth = 2;
             }
 
-            let chartGroup: d3.Selection<SVGElement> = options.element;
-            chartGroup.attr("transform", "translate(" + margin.left + "," + (options.top + margin.top) + ")");
+            let chartGroup: IChartGroup = options.element;
+            chartGroup.group
+                .attr("transform", "translate(" + margin.left + "," + (options.top + margin.top) + ")");
 
-            let chartArea: d3.Selection<SVGElement> = chartGroup.select(".area");
+            let chartArea: d3.Selection<SVGElement> = chartGroup.area;
             chartArea
                 .datum(chartData)
                 .attr({
@@ -1107,7 +1196,7 @@ module powerbi.extensibility.visual {
                     "d": seriesRenderer as any
                 });
 
-            let zeroAxis: d3.Selection<SVGElement> = chartGroup.select(".zero-axis");
+            let zeroAxis: d3.Selection<SVGElement> = chartGroup.zeroAxis;
             let minChartDataValue = d3.min(chartData, (d: IDualKpiDataPoint) => d.value);
 
             // DRAW line for x axis at zero position
@@ -1127,14 +1216,14 @@ module powerbi.extensibility.visual {
                     .classed("hidden", true);
             }
 
-            let axis: d3.Selection<SVGElement> = chartGroup.select(".axis");
+            let axis: d3.Selection<SVGElement> = chartGroup.yAxis;
             axis
                 .attr("class", "axis")
                 .classed(this.sizeCssClass, true)
                 .call(yAxis);
 
             /* Add elements for hover behavior ******************************************************/
-            let hoverLine: d3.Selection<SVGElement> = chartGroup.select(".hoverLine");
+            let hoverLine: d3.Selection<SVGElement> = chartGroup.hoverLine;
             hoverLine
                 .classed("hidden", true)
                 .attr({
@@ -1146,7 +1235,8 @@ module powerbi.extensibility.visual {
             let chartBottom = margin.top + calcHeight;
             let chartLeft = margin.left;
 
-            let hoverDataContainer: d3.Selection<SVGElement> = this.updateHoverDataContainer(options.element, chartBottom, chartLeft, calcWidth);
+            let hoverDataContainer: IHoverDataContainer = options.element.hoverDataContainer;
+            this.updateHoverDataContainer(hoverDataContainer, chartBottom, chartLeft, calcWidth);
 
             let onMousemove = (e: any) => {
                 let leftPosition = e.clientX - margin.left;
@@ -1189,7 +1279,7 @@ module powerbi.extensibility.visual {
 
         private addOverlayText(options: IDualKpiOptions, latestValue: number, calcHeight: number, calcWidth: number): void {
             let chartData: Array<IDualKpiDataPoint> = options.chartData;
-            let chartGroup: d3.Selection<SVGElement> = options.element;
+            let chartGroup: IChartGroup = options.element;
 
             let percentChange = DualKpi.getPercentChange(options.percentChangeStartPoint.value, chartData[chartData.length - 1].value);
             let formattedValue = options.abbreviateValue ? this.valueFormatter(latestValue) : this.commaNumberFormatter(Math.round(latestValue));
@@ -1200,8 +1290,8 @@ module powerbi.extensibility.visual {
                 percentChange = DualKpi.percentFormatter((chartData[chartData.length - 1].value - options.percentChangeStartPoint.value) / 100, true);
             }
 
-            let chartOverlayTextGroup: d3.Selection<SVGElement> = chartGroup.select(".group");
-            let dataTitle: d3.Selection<SVGElement> = chartOverlayTextGroup.select("text.data-title");
+            let chartOverlay: IChartOverlay = chartGroup.chartOverlay;
+            let dataTitle = chartOverlay.title;
             dataTitle
                 .classed("invisible", true)
                 .attr("class", "data-title")
@@ -1209,7 +1299,7 @@ module powerbi.extensibility.visual {
                 .attr("fill", this.data.textColor)
                 .text(options.chartTitle + " (" + percentChange + ")");
 
-            let dataValue: d3.Selection<SVGElement> = chartOverlayTextGroup.select("text.data-value");
+            let dataValue = chartOverlay.text;
             dataValue
                 .classed("invisible", true)
                 .attr("class", "data-value")
@@ -1217,48 +1307,35 @@ module powerbi.extensibility.visual {
                 .attr("fill", this.data.textColor)
                 .text(formattedValue);
 
-            let dataTitleRect = DualKpi.getSVGRect(dataTitle);
-            let dataValueRect = DualKpi.getSVGRect(dataValue);
-
-            let dataTitleHeight = dataTitleRect.height;
-            let dataValueHeight = dataValueRect.height;
-
-            // calc horizontal centering
-            let dataTitleWidth = dataTitleRect.width;
-            let dataValueWidth = dataValueRect.width;
-            let dataTitleHorzCentering = ((calcWidth / 2)) - (dataTitleWidth / 2);
-            let dataValueHorzCentering = ((calcWidth / 2)) - (dataValueWidth / 2);
+            let dataTitleHorzCentering = calcWidth / 2;
+            let dataValueHorzCentering = calcWidth / 2;
+            let verticalMargin = DualKpi.DefaultValueSizes[this.sizeCssClass];
 
             // apply centerings, then unhide text
             dataTitle.attr("transform", `translate(${dataTitleHorzCentering}, 0)`);
-            dataValue.attr("transform", `translate(${dataValueHorzCentering}, ${dataValueHeight * 10 / 11})`);
+            dataValue.attr("transform", `translate(${dataValueHorzCentering}, ${verticalMargin})`);
 
-            let verticalCentering = (calcHeight / 2) - dataTitleHeight; // bump slightly above perfectly vertically centered on chart
+            let verticalCentering = (calcHeight / 2) - verticalMargin / 2; // bump slightly above perfectly vertically centered on chart
             let horizontalCentering = 0;
 
-            chartOverlayTextGroup
+            chartOverlay.group
                 .attr("transform", `translate(${horizontalCentering}, ${verticalCentering})`);
+
             dataTitle.classed("invisible", false);
             dataValue.classed("invisible", false);
 
             // set rect dimensions
             // add rect to overlay section so that tooltip shows up more easily
-            let overlayRect: d3.Selection<SVGElement> = chartOverlayTextGroup.select("rect");
+            let overlayRect: d3.Selection<SVGElement> = chartOverlay.rect;
 
             // add tooltip
             let percentChangeDesc = percentChange + " change since " + this.timeFormatter(options.percentChangeStartPoint.date);
             let overlayTooltipText = options.tooltipText + " " + percentChangeDesc;
-            overlayRect
-                .append("title")
-                .text(overlayTooltipText);
 
-            overlayRect
-                .attr({
-                    "style": "stroke: none; fill: #000;opacity:0;",
-                    "width": dataTitleWidth,
-                    "height": dataTitleHeight + dataValueHeight,
-                    "transform": `translate(${dataTitleHorzCentering}, ${-dataTitleHeight})`
-                });
+            let overlayTooltip: d3.Selection<SVGElement> = chartOverlay.rectTitle;
+
+            overlayTooltip
+                .text(overlayTooltipText);
 
             overlayRect.on("touchstart", () => this.showMobileTooltip(overlayTooltipText));
             overlayRect.on("mousemove", () => {
@@ -1266,19 +1343,6 @@ module powerbi.extensibility.visual {
                     (d3.event as Event).stopPropagation();
                 }
             });
-        }
-
-        private static getSVGRect(element: d3.Selection<SVGElement>): SVGRect {
-            let node: SVGTextElement = element.node() as SVGTextElement;
-            if (node) {
-                return node.getBBox();
-            }
-            return {
-                width: 0,
-                height: 0,
-                x: 0,
-                y: 0
-            }
         }
 
     }  /*close IVisual*/

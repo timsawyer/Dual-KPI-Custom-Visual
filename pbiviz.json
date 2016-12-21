@@ -4,7 +4,7 @@
     "displayName": "Dual KPI",
     "guid": "PBI_CV_697D4EA0_7828_46D2_981F_D1C52E737F93",
     "visualClassName": "DualKpi",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "description": "Visual for displaying and comparing two KPI's",
     "supportUrl": "https://github.com/tisawyer/Dual-KPI-Custom-Visual/issues",
     "gitHubUrl": "https://github.com/tisawyer/Dual-KPI-Custom-Visual"
