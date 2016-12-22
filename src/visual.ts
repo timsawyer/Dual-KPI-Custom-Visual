@@ -371,8 +371,10 @@ module powerbi.extensibility.visual {
                     "text-anchor": "middle"
                 });
 
+            // this rect is always invisible, used for capture mouse and touch events
             let chartOverlayRect = chartOverlayTextGroup
-                .append("rect");
+                .append("rect")
+                .attr("style", "stroke: none; fill: #000;opacity:0;");
 
             let rectTitle = chartOverlayTextGroup
                 .append("title");
@@ -1344,6 +1346,18 @@ module powerbi.extensibility.visual {
             overlayTooltip
                 .text(overlayTooltipText);
 
+            let dataTitleWidth = (dataTitle.node() as SVGTextElement).getBBox().width;
+            let dataValueWidth = (dataValue.node() as SVGTextElement).getBBox().width;
+            let dataTitleHeight = (dataTitle.node() as SVGTextElement).getBBox().height;
+            let dataValueHeight = (dataValue.node() as SVGTextElement).getBBox().height;
+
+            // set width, height, and position of overlay rect
+            // this rect support capturing touch events to show mobile tooltips
+            overlayRect
+                .attr("width", dataTitleWidth)
+                .attr("height", dataTitleHeight + dataValueHeight + verticalMargin)
+                .attr("transform", "translate(" + (dataTitleHorzCentering - (dataTitleWidth/2)) + "," + (-dataTitleHeight) + ")");
+
             overlayRect.on("touchstart", () => this.showMobileTooltip(overlayTooltipText));
             overlayRect.on("mousemove", () => {
                 if (this.touchEventsEnabled) {
@@ -1351,6 +1365,5 @@ module powerbi.extensibility.visual {
                 }
             });
         }
-
     }  /*close IVisual*/
 } /*close export*/
