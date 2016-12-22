@@ -1356,7 +1356,7 @@ module powerbi.extensibility.visual {
             // this rect support capturing touch events to show mobile tooltips
             overlayRect
                 .attr("width", dataTitleWidth)
-                .attr("height", dataTitleHeight + dataValueHeight + verticalMargin)
+                .attr("height", dataTitleHeight + dataValueHeight + (verticalMargin -  dataValueHeight))
                 .attr("transform", "translate(" + (dataTitleHorzCentering - (dataTitleWidth/2)) + "," + (-dataTitleHeight) + ")");
 
             overlayRect.on("touchstart", () => this.showMobileTooltip(overlayTooltipText));
