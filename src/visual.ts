@@ -1002,7 +1002,6 @@ module powerbi.extensibility.visual {
                 this.touchEventsEnabled = true;
             }
             // prevent hide from being called, and prevent hover interaction from occuring on same event
-            console.log("stopping prop");
             (d3.event as TouchEvent).stopPropagation();
 
             this.mobileTooltip.html(message);
