@@ -1206,10 +1206,12 @@ module powerbi.extensibility.visual {
                 });
 
             let zeroAxis: d3.Selection<SVGElement> = chartGroup.zeroAxis;
-            let minChartDataValue = d3.min(chartData, (d: IDualKpiDataPoint) => d.value);
+            let zeroPointOnAxis = axisMinValue <= 0 && axisMaxValue >= 0 ? true : false;
 
             // DRAW line for x axis at zero position
-            if (options.showZeroLine && minChartDataValue < 0) {
+            // if formatting option for zero line set to true
+            // and if a value of zero is on the y-axis
+            if (options.showZeroLine && zeroPointOnAxis) {
                 let axisLine = d3.svg.line()
                     .x((d: any) => xScale(d.date))
                     .y((d: any) => yScale(0));
