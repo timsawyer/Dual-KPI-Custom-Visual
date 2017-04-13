@@ -6,7 +6,7 @@ A Power BI Custom Visual for displaying and comparing two KPI's. This visual sup
 ![Image of Visual](https://github.com/tisawyer/Dual-KPI-Custom-Visual/raw/master/assets/screenshot.png)
 
 ## Usage
-To use download the .pbiviz file from [here](https://github.com/tisawyer/Dual-KPI-Custom-Visual/raw/master/dist/dualKpi.pbiviz), and import into a Power BI Report.
+To use download the .pbiviz file from [here](https://app.powerbi.com/visuals/show/PBI_CV_3C80B1F2_09AF_4123_8E99_C3CBC46B23E0), and import into a Power BI Report.
 
 ## Data fields
 **Axis**  
